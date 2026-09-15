@@ -7,7 +7,7 @@ import { usePlayerStore } from '@/stores/playerStore'
 import { audioEngine } from '@/audio/AudioEngine'
 import { cn } from '@/lib/cn'
 import type { LyricLine, LyricWordSpan } from '@/schemas/track'
-import { estimateLineWords } from '@/api/lyrics'
+import { estimateLineWords, splitGraphemes } from '@/api/lyrics'
 import { Skeleton } from '@/components/common/Skeleton'
 
 function indexAt(lines: LyricLine[], t: number): number {
@@ -68,7 +68,7 @@ const ActiveLineRenderer: React.FC<{
         )}
       >
         {words.map((w, wIdx) => {
-          const chars = w.text.split('')
+          const chars = splitGraphemes(w.text)
           const wDur = w.duration || 0.35
           const charDur = chars.length > 0 ? wDur / chars.length : 0.05
 
@@ -93,7 +93,7 @@ const ActiveLineRenderer: React.FC<{
                           ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
                           : undefined,
                     }}
-                    className="transition-colors duration-75 inline-block"
+                    className="transition-colors duration-75"
                   >
                     {ch}
                   </span>

@@ -30,6 +30,7 @@ import {
   type LyricsTextPosition,
   type LyricsTextSize,
 } from '@/stores/settingsStore'
+import { splitGraphemes } from '@/api/lyrics'
 import { cn } from '@/lib/cn'
 
 export const Route = createFileRoute('/settings/lyrics')({
@@ -78,7 +79,7 @@ function LyricsPreviewCard() {
 
   const curLine = PREVIEW_LINES[activeLine]
   const words = curLine.text.split(' ')
-  const totalChars = curLine.text.length
+  const totalChars = splitGraphemes(curLine.text).length
 
   const fontSizeClass = {
     sm: 'text-base sm:text-lg',
@@ -147,7 +148,7 @@ function LyricsPreviewCard() {
                   )}
                 >
                   {words.map((word, wIdx) => {
-                    const wordChars = word.split('')
+                    const wordChars = splitGraphemes(word)
                     const wordSpan = (
                       <span key={wIdx} className="inline-flex mr-[0.3em] last:mr-0">
                         {wordChars.map((ch, cIdx) => {
@@ -170,7 +171,7 @@ function LyricsPreviewCard() {
                                     ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
                                     : undefined,
                               }}
-                              className="transition-colors duration-75 inline-block"
+                              className="transition-colors duration-75"
                             >
                               {ch}
                             </span>

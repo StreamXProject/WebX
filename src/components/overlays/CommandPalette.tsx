@@ -9,8 +9,6 @@ import { useSearch } from '@/hooks/useQueries'
 import { Artwork } from '@/components/common/Artwork'
 import { RecapIcon } from '@/components/common/RecapIcon'
 import { fetchShuffle } from '@/api/browse'
-import { fetchAlbumById } from '@/api/albums'
-import { fetchArtistById } from '@/api/artists'
 import { cn } from '@/lib/cn'
 import type { Track } from '@/schemas/track'
 
@@ -121,36 +119,11 @@ export const CommandPalette: React.FC = () => {
           hint: `Album · ${a.artist}`,
           icon: <Artwork src={a.cover_url} alt="" kind="album" className="size-8 rounded-xs" />,
           kind: 'album',
-          run: async () => {
+          run: () => {
             close()
             useUiStore.getState().closeFullPlayer()
             pushRecentSearch(q.trim())
             navigate({ to: '/album/$albumId', params: { albumId: a.id } })
-            try {
-              const album = await fetchAlbumById(a.id)
-              const tracks = album.tracks && album.tracks.length > 0
-                ? album.tracks
-                : data.tracks.filter((t) => t.album_id === a.id || t.album?.toLowerCase() === a.title.toLowerCase())
-              if (tracks.length > 0) {
-                void useQueueStore.getState().playTrackWithQueue(tracks, 0, {
-                  type: 'album',
-                  id: a.id,
-                  title: album.title || a.title,
-                  href: `/album/${a.id}`,
-                })
-              }
-            } catch (err) {
-              console.error('Failed to play album from search', err)
-              const fallback = data.tracks.filter((t) => t.album_id === a.id || t.album?.toLowerCase() === a.title.toLowerCase())
-              if (fallback.length > 0) {
-                void useQueueStore.getState().playTrackWithQueue(fallback, 0, {
-                  type: 'album',
-                  id: a.id,
-                  title: a.title,
-                  href: `/album/${a.id}`,
-                })
-              }
-            }
           },
         })
       }
@@ -161,35 +134,11 @@ export const CommandPalette: React.FC = () => {
           hint: 'Artist',
           icon: <Artwork src={ar.avatar_url} alt="" kind="artist" className="size-8" />,
           kind: 'artist',
-          run: async () => {
+          run: () => {
             close()
             useUiStore.getState().closeFullPlayer()
             pushRecentSearch(q.trim())
             navigate({ to: '/artist/$artistId', params: { artistId: ar.id } })
-            try {
-              const artist = await fetchArtistById(ar.id)
-              const artistTracks = artist.all_tracks.length ? artist.all_tracks : artist.top_tracks
-              const tracks = artistTracks.length > 0
-                ? artistTracks
-                : data.tracks.filter((t) => t.artist_id === ar.id || t.artist?.toLowerCase() === ar.name.toLowerCase())
-              if (tracks.length > 0) {
-                void useQueueStore.getState().playTrackWithQueue(tracks, 0, {
-                  type: 'artist',
-                  id: ar.id,
-                  title: artist.name || ar.name,
-                })
-              }
-            } catch (err) {
-              console.error('Failed to play artist from search', err)
-              const fallback = data.tracks.filter((t) => t.artist_id === ar.id || t.artist?.toLowerCase() === ar.name.toLowerCase())
-              if (fallback.length > 0) {
-                void useQueueStore.getState().playTrackWithQueue(fallback, 0, {
-                  type: 'artist',
-                  id: ar.id,
-                  title: ar.name,
-                })
-              }
-            }
           },
         })
       }
@@ -313,7 +262,8 @@ export const CommandPalette: React.FC = () => {
                       <span className="block truncate type-body-lg">{c.label}</span>
                       {c.hint && <span className="block truncate type-body-sm text-on-surface-variant">{c.hint}</span>}
                     </span>
-                    {(c.kind === 'track' || c.kind === 'album' || c.kind === 'artist') && !isActive && <Play className="size-4 opacity-60" />}
+                    {c.kind === 'track' && !isActive && <Play className="size-4 opacity-60" />}
+                    {(c.kind === 'album' || c.kind === 'artist') && !isActive && <ArrowRight className="size-4 opacity-60" />}
                     {isActive && <CornerDownLeft className="size-4 opacity-60" />}
                   </button>
                 )

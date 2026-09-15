@@ -26,6 +26,27 @@ function parseSeconds(m: string, s: string, fracRaw?: string): number {
   return min * 60 + sec + frac
 }
 
+const graphemeSegmenter =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null
+
+/**
+ * Split text into user-perceived characters (grapheme clusters).
+ * Prevents Devanagari, Bengali, Tamil, Arabic and other complex scripts
+ * which browsers render as dotted circles (◌).
+ */
+export function splitGraphemes(text: string): string[] {
+  if (!text) return []
+  if (graphemeSegmenter) {
+    return Array.from(graphemeSegmenter.segment(text), (s) => s.segment)
+  }
+  const matches = text.match(
+    /[\s\S][\u0300-\u036f\u0900-\u097f\u0980-\u09ff\u0a00-\u0a7f\u0a80-\u0aff\u0b00-\u0b7f\u0b80-\u0bff\u0c00-\u0c7f\u0c80-\u0cff\u0d00-\u0d7f\u0e00-\u0eff\u20d0-\u20ff\ufe20-\ufe2f]*/gu
+  )
+  return matches || Array.from(text)
+}
+
 /** Char-count estimation mirroring piTube estimateWords / Apple Music V2 fallback */
 export function estimateLineWords(line: LyricLine, activeDurationSec = 3.5): LyricWordSpan[] {
   if (line.spans && line.spans.length > 0) return line.spans
@@ -33,10 +54,10 @@ export function estimateLineWords(line: LyricLine, activeDurationSec = 3.5): Lyr
   if (words.length === 0) {
     return [{ time: line.time, duration: activeDurationSec, text: line.text }]
   }
-  const totalChars = Math.max(1, line.text.length)
+  const totalChars = Math.max(1, splitGraphemes(line.text).length)
   let accumulated = line.time
   return words.map((word, i) => {
-    const charCount = word.length + (i < words.length - 1 ? 1 : 0)
+    const charCount = splitGraphemes(word).length + (i < words.length - 1 ? 1 : 0)
     const dur = Math.max(0.08, (activeDurationSec * charCount) / totalChars)
     const span: LyricWordSpan = {
       time: accumulated,
