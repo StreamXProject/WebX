@@ -1,5 +1,5 @@
 /* WebX service worker — app shell + asset caching. Audio streams and API JSON are never cached. */
-const VERSION = 'webx-v21'
+const VERSION = 'webx-v22'
 const SHELL_CACHE = `${VERSION}-shell`
 const ASSET_CACHE = `${VERSION}-assets`
 const IMAGE_CACHE = `${VERSION}-images`
@@ -33,8 +33,9 @@ self.addEventListener('message', (event) => {
 
 const isStream = (url) => /\/tracks\/[^/]+\/(stream|download|warm)(\/|$|\?)/.test(url.pathname)
 const isApi = (url, req) =>
-  req.headers.get('accept')?.includes('application/json') ||
-  /^\/(me|auth|browse|tracks|search|albums|artists|topics|share|jam|health|lyrics|playlists|friends|presence|notifications)(\/|$)/.test(url.pathname)
+  req.mode !== 'navigate' &&
+  (req.headers.get('accept')?.includes('application/json') ||
+    /^\/(me|auth|browse|tracks|search|albums|artists|topics|share|jam|health|lyrics|playlists|friends|presence|notifications)(\/|$)/.test(url.pathname))
 const isHashedAsset = (url) => url.pathname.startsWith('/assets/')
 const isImage = (req) => req.destination === 'image'
 const isFont = (url, req) => req.destination === 'font' || /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)
@@ -70,17 +71,20 @@ async function staleWhileRevalidate(req, name, limit) {
 }
 
 async function navigation(event) {
+  const cache = await caches.open(SHELL_CACHE)
   try {
     const preload = await event.preloadResponse
-    if (preload) return preload
-    const res = await fetch(event.request, { cache: 'no-cache' })
-    const cache = await caches.open(SHELL_CACHE)
-    cache.put('/index.html', res.clone())
-    return res
-  } catch {
-    const cache = await caches.open(SHELL_CACHE)
-    return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error()
-  }
+    if (preload && preload.ok && (preload.headers.get('content-type') || '').includes('text/html')) {
+      cache.put('/index.html', preload.clone())
+      return preload
+    }
+    const res = await fetch('/index.html', { cache: 'no-cache' })
+    if (res.ok && (res.headers.get('content-type') || '').includes('text/html')) {
+      cache.put('/index.html', res.clone())
+      return res
+    }
+  } catch {}
+  return (await cache.match('/index.html')) || (await cache.match('/')) || Response.error()
 }
 
 self.addEventListener('fetch', (event) => {
@@ -89,13 +93,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url)
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return
 
-  // Never touch audio (range requests) or API calls — always live.
-  if (isStream(url) || (url.origin === self.location.origin && isApi(url, req))) return
-
+  // Navigation requests always serve the SPA shell
   if (req.mode === 'navigate') {
     event.respondWith(navigation(event))
     return
   }
+
+  // Never touch audio (range requests) or API calls — always live.
+  if (isStream(url) || (url.origin === self.location.origin && isApi(url, req))) return
+
   if (url.origin === self.location.origin && isHashedAsset(url)) {
     event.respondWith(cacheFirst(req, ASSET_CACHE))
     return
