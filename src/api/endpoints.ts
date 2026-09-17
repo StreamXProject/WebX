@@ -23,6 +23,8 @@ export const API_ENDPOINTS = {
   AUTH_TELEGRAM_CONFIG: '/auth/telegram/config',
   AUTH_TELEGRAM_WIDGET: '/auth/telegram/widget',
   AUTH_TELEGRAM_VALIDATE_TOKEN: '/auth/telegram/validate-token',
+  AUTH_TELEGRAM_BOT_SESSION: '/auth/telegram/bot-session',
+  AUTH_TELEGRAM_BOT_SESSION_STATUS: '/auth/telegram/bot-session/status',
   AUTH_INTEGRATIONS: '/auth/integrations',
   AUTH_ACCESS_STATUS: '/auth/access/status',
   AUTH_VERIFY_MEMBERSHIP: '/auth/access/verify-membership',

@@ -26,6 +26,7 @@ export const TrackCoreSchema = z
     type: z.string().optional().nullable(),
     topic_name: z.string().optional().nullable(),
     updated_at: z.number().optional().nullable(),
+    titles: z.record(z.string(), z.any()).optional().nullable(),
     audio: z.record(z.string(), z.any()).optional().nullable(),
     spotify: z.record(z.string(), z.any()).optional().nullable(),
     telegram: z.record(z.string(), z.any()).optional().nullable(),
@@ -54,6 +55,11 @@ export interface Track {
   type?: string | null
   topic_name?: string | null
   updated_at?: number | null
+  titles?: {
+    original?: string
+    romanized?: string
+    translations?: Record<string, string>
+  } | null
 }
 
 const UNKNOWN = new Set(['Unknown Title', 'Unknown Artist', 'Unknown Album', '', null, undefined])
@@ -73,6 +79,7 @@ export const TrackSchema = TrackCoreSchema.transform((data): Track => {
   const album = pick(data.album, audio.album)
   const cover_url = pick(data.cover_url, spotify.big_cover_url, spotify.cover_url) || null
   const stream_url = data.stream_url && /^https?:\/\//.test(data.stream_url) ? data.stream_url : null
+  const titles = (data.titles || audio.titles || null) as Track['titles']
 
   return {
     id,
@@ -95,6 +102,7 @@ export const TrackSchema = TrackCoreSchema.transform((data): Track => {
     type: data.type || (audio.type as string | undefined) || null,
     topic_name: data.topic_name || null,
     updated_at: data.updated_at ?? null,
+    titles,
   }
 })
 

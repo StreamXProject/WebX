@@ -10,6 +10,7 @@ export interface LoginResponse {
   username?: string | null
   profile_url?: string | null
   photo_url?: string | null
+  detail?: string
 }
 
 function toProfile(data: LoginResponse): UserProfile {
@@ -156,9 +157,71 @@ export async function loginWithTelegramWidget(data: {
   return { user: toProfile(res), token: res.token }
 }
 
-export async function loginWithTelegramToken(id_token: string): Promise<{ user: UserProfile; token: string }> {
-  const res = await http.post<LoginResponse>(API_ENDPOINTS.AUTH_TELEGRAM_VALIDATE_TOKEN, { id_token }, { anonymous: true })
+export async function loginWithTelegramToken(id_token: string, invite_code?: string): Promise<{ user: UserProfile; token: string }> {
+  const res = await http.post<LoginResponse>(API_ENDPOINTS.AUTH_TELEGRAM_VALIDATE_TOKEN, { id_token, invite_code }, { anonymous: true })
   if (!res?.ok || !res.token) throw new Error('Telegram login failed')
   return { user: toProfile(res), token: res.token }
 }
+
+export async function loginWithTelegramMiniApp(init_data: string, invite_code?: string): Promise<{ user: UserProfile; token: string }> {
+  const res = await http.post<LoginResponse>(
+    '/auth/tg/login?set_cookie=true',
+    { init_data, invite_code },
+    { anonymous: true }
+  )
+  if (!res?.ok || !res.token) throw new Error(res?.detail || 'Telegram Mini App login failed')
+  return { user: toProfile(res), token: res.token }
+}
+
+
+export interface TelegramBotSession {
+  ok: boolean
+  session_id: string
+  bot_username: string
+  tg_url: string
+  web_url: string
+}
+
+export interface TelegramBotSessionStatus {
+  ok: boolean
+  status: 'pending' | 'confirmed' | 'expired' | 'not_found'
+  token?: string
+  user?: UserProfile
+}
+
+export async function createTelegramBotSession(invite_code?: string, baseUrl?: string): Promise<TelegramBotSession> {
+  return http.post<TelegramBotSession>(
+    API_ENDPOINTS.AUTH_TELEGRAM_BOT_SESSION,
+    { invite_code },
+    { anonymous: true, baseUrl }
+  )
+}
+
+export async function checkTelegramBotSessionStatus(sessionId: string, baseUrl?: string): Promise<TelegramBotSessionStatus> {
+  const res = await http.get<{
+    ok: boolean
+    status: 'pending' | 'confirmed' | 'expired' | 'not_found'
+    token?: string
+    user_id?: string | number
+    first_name?: string
+    username?: string
+    photo_url?: string
+    profile_url?: string
+  }>(`${API_ENDPOINTS.AUTH_TELEGRAM_BOT_SESSION_STATUS}?session_id=${encodeURIComponent(sessionId)}`, { anonymous: true, baseUrl })
+
+  if (res.status === 'confirmed' && res.token) {
+    const user: UserProfile = {
+      id: String(res.user_id || ''),
+      name: res.first_name || res.username || 'Telegram User',
+      username: res.username || undefined,
+      avatarUrl: res.profile_url || res.photo_url || null,
+      profile_url: res.profile_url || res.photo_url || null,
+      photo_url: res.photo_url || res.profile_url || null,
+    }
+    return { ok: true, status: 'confirmed', token: res.token, user }
+  }
+  return { ok: res.ok, status: res.status }
+}
+
+
 

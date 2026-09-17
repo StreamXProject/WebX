@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Lock, User, Eye, EyeOff, ArrowRight, Check, Copy, ShieldCheck, Ticket, X, ExternalLink } from 'lucide-react'
 import { useAuthStore, sessionKind, parseTokenPayload, type UserProfile } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { loginUser, loginWithServerPassword, fetchSetupStatus, setupOwnerPassword, fetchMe, fetchTelegramConfig, type TelegramConfig } from '@/api/auth'
+import { loginUser, loginWithServerPassword, fetchSetupStatus, setupOwnerPassword, fetchMe, fetchTelegramConfig, createTelegramBotSession, checkTelegramBotSessionStatus, loginWithTelegramMiniApp, type TelegramConfig } from '@/api/auth'
 import { checkHealth } from '@/api/health'
 import { getBaseUrl, http } from '@/api/client'
 import { API_ENDPOINTS } from '@/api/endpoints'
@@ -11,6 +11,8 @@ import { AuthCard, ErrorBanner } from '@/components/auth/AuthCard'
 import { accessDenied, fetchAccessStatus, type RequiredChat, type AccessStatus } from '@/api/access'
 import { Button, TextField, SegmentedButton, IdPill } from '@/components/md3'
 import { TelegramIcon } from '@/components/common/TelegramIcon'
+import { TelegramMethodModal } from '@/components/auth/TelegramMethodModal'
+import { loadTelegramLoginScript, type TelegramLoginResult } from '@/lib/telegramLogin'
 import { cn } from '@/lib/cn'
 
 export interface LoginSearch {
@@ -73,7 +75,105 @@ function LoginPage() {
   const [showInviteInput, setShowInviteInput] = useState(() => Boolean(search.invite || search.code))
   const [pendingTgData, setPendingTgData] = useState<Record<string, unknown> | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
+  const [showMethodModal, setShowMethodModal] = useState(false)
+  const [waitingForBot, setWaitingForBot] = useState(false)
+  const [botDeepLink, setBotDeepLink] = useState<string | null>(null)
+  const botPollIntervalRef = useRef<number | null>(null)
   const pendingAuthRef = useRef<{ user: UserProfile; token: string } | null>(null)
+
+  const [miniAppUser, setMiniAppUser] = useState<{ firstName?: string } | null>(() => {
+    if (typeof window === 'undefined') return null
+    const u = window.Telegram?.WebApp?.initDataUnsafe?.user
+    return u?.first_name ? { firstName: u.first_name } : null
+  })
+
+  const handleMiniAppLogin = async (overrideInviteCode?: string): Promise<boolean> => {
+    if (typeof window === 'undefined') return false
+    const tg = window.Telegram?.WebApp
+    if (!tg?.initData) return false
+    setError(null)
+    setBusy(true)
+    const cleanCode = (overrideInviteCode ?? inviteCode).trim().toUpperCase()
+    try {
+      const res = await loginWithTelegramMiniApp(tg.initData, cleanCode || undefined)
+      setBusy(false)
+      pendingAuthRef.current = res
+      setSuccessUser(res.user)
+      setCountdown(3)
+      return true
+    } catch (err: any) {
+      setBusy(false)
+      const denied = accessDenied(err)
+      if (denied) {
+        if (denied.detail.startsWith('invite_') || denied.detail === 'invite_required') {
+          setShowInviteInput(true)
+          setPendingTgData({
+            id: tg.initDataUnsafe?.user?.id,
+            first_name: tg.initDataUnsafe?.user?.first_name,
+            last_name: tg.initDataUnsafe?.user?.last_name,
+            username: tg.initDataUnsafe?.user?.username,
+            photo_url: tg.initDataUnsafe?.user?.photo_url,
+          })
+          const map: Record<string, string> = {
+            invite_required: 'An invite code is required.',
+            invite_invalid: 'That invite code is not valid.',
+            invite_expired: 'That invite code has expired.',
+            invite_exhausted: 'That invite code has already been used.',
+          }
+          setInviteError(
+            denied.detail === 'invite_required'
+              ? 'An invite code is required for registration.'
+              : (map[denied.detail] || denied.message || 'Invalid invite code.')
+          )
+          return false
+        }
+        setDeniedChats(denied.detail === 'membership_required' ? denied.required_chats ?? [] : null)
+        setError(
+          denied.detail === 'account_locked'
+            ? `Account locked. ${denied.message || ''}`.trim()
+            : denied.detail === 'registration_closed'
+            ? 'Registrations are closed. New accounts cannot be created.'
+            : denied.detail === 'membership_required'
+            ? (denied.message || 'You must join the required Telegram chat(s) before continuing.')
+            : (denied.message || 'Access denied')
+        )
+        return false
+      }
+      setError(err?.message || 'Telegram Mini App login failed.')
+      return false
+    }
+  }
+
+  // Mini App auto-init and instant authentication
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+    tg.ready?.()
+    tg.expand?.()
+
+    if (tg.initData) {
+      const u = tg.initDataUnsafe?.user
+      if (u?.first_name) {
+        setMiniAppUser({ firstName: u.first_name })
+      }
+      if (!token && !searchToken) {
+        handleMiniAppLogin()
+      }
+    }
+  }, [token, searchToken])
+
+  useEffect(() => {
+    return () => {
+      if (botPollIntervalRef.current) {
+        clearInterval(botPollIntervalRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    loadTelegramLoginScript().catch(() => {})
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -276,6 +376,185 @@ function LoginPage() {
       const base = getBaseUrl() || origin
       const startUrl = `${base.replace(/\/$/, '')}/auth/telegram/start?redirect=${encodeURIComponent(redirectDest)}&frontend_url=${encodeURIComponent(origin)}${cleanCode ? `&invite_code=${encodeURIComponent(cleanCode)}` : ''}`
       window.location.href = startUrl
+    }
+  }
+
+  const stopBotPolling = () => {
+    if (botPollIntervalRef.current) {
+      clearInterval(botPollIntervalRef.current)
+      botPollIntervalRef.current = null
+    }
+    setWaitingForBot(false)
+    setBotDeepLink(null)
+  }
+
+  const startTelegramBotAppLogin = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      const cleanCode = inviteCode.trim().toUpperCase()
+      const session = await createTelegramBotSession(cleanCode || undefined)
+      if (!session.ok || !session.session_id) {
+        throw new Error('Could not create bot authorization session')
+      }
+
+      setWaitingForBot(true)
+      const link = session.tg_url || session.web_url
+      setBotDeepLink(session.web_url || session.tg_url)
+      setBusy(false)
+
+      // Try to open Telegram app protocol directly
+      if (typeof window !== 'undefined' && link) {
+        window.location.href = session.tg_url || session.web_url
+      }
+
+      // Poll for bot confirmation
+      if (botPollIntervalRef.current) clearInterval(botPollIntervalRef.current)
+      botPollIntervalRef.current = window.setInterval(async () => {
+        try {
+          const status = await checkTelegramBotSessionStatus(session.session_id)
+          if (status.status === 'confirmed' && status.token && status.user) {
+            stopBotPolling()
+            setShowMethodModal(false)
+            login(status.user, status.token)
+            navigate({ to: (search.redirect as '/') || '/' })
+          } else if (status.status === 'expired' || status.status === 'not_found') {
+            stopBotPolling()
+            setError('Telegram authorization expired. Please try again.')
+          }
+        } catch {
+          // keep polling
+        }
+      }, 1500)
+    } catch (err: any) {
+      setBusy(false)
+      setError(err?.message || 'Failed to start Telegram app authorization')
+    }
+  }
+
+  const startTelegramRedirectLogin = () => {
+    stopBotPolling()
+    setShowMethodModal(false)
+    startTelegramLogin()
+  }
+
+  const startTelegramPopupLogin = async () => {
+    setShowMethodModal(false)
+    setError(null)
+    setBusy(true)
+
+    try {
+      await loadTelegramLoginScript()
+      if (!window.Telegram?.Login) {
+        throw new Error('Telegram Login library could not be loaded.')
+      }
+
+      const clientId = Number(tgConfig?.client_id || '8879601665')
+      if (!clientId || isNaN(clientId)) {
+        throw new Error('Invalid Telegram Client ID.')
+      }
+
+      const cleanCode = inviteCode.trim().toUpperCase()
+
+      window.Telegram.Login.init(
+        {
+          client_id: clientId,
+          request_access: ['write'],
+          lang: typeof navigator !== 'undefined' && navigator.language ? navigator.language.slice(0, 2) : 'en',
+        },
+        async (data: TelegramLoginResult) => {
+          if (data.error) {
+            setBusy(false)
+            if (data.error === 'popup_closed' || data.error === 'access_denied') {
+              setError('Telegram sign-in was cancelled.')
+            } else {
+              setError(`Telegram sign-in failed: ${data.error}`)
+            }
+            return
+          }
+
+          if (!data.id_token) {
+            setBusy(false)
+            setError('No authentication token received from Telegram.')
+            return
+          }
+
+          try {
+            setBusy(true)
+            const authRes = await http.post<{
+              ok: boolean
+              token?: string
+              user_id?: string | number
+              first_name?: string
+              username?: string
+              profile_url?: string
+              photo_url?: string
+              detail?: string
+            }>(
+              API_ENDPOINTS.AUTH_TELEGRAM_VALIDATE_TOKEN,
+              {
+                id_token: data.id_token,
+                invite_code: cleanCode || undefined,
+              },
+              { anonymous: true }
+            )
+            setBusy(false)
+            if (authRes.ok && authRes.token) {
+              const payload = parseTokenPayload(authRes.token)
+              const u: UserProfile = {
+                id: String(authRes.user_id || payload?.uid || payload?.userid || payload?.user_id || ''),
+                name: authRes.first_name || (payload?.first_name as string) || data.user?.name || 'Telegram User',
+                username: authRes.username || (payload?.username as string) || data.user?.preferred_username || undefined,
+                avatarUrl: authRes.profile_url || authRes.photo_url || data.user?.picture || null,
+                profile_url: authRes.profile_url || authRes.photo_url || data.user?.picture || null,
+                photo_url: authRes.photo_url || authRes.profile_url || data.user?.picture || null,
+              }
+              pendingAuthRef.current = { user: u, token: authRes.token }
+              setSuccessUser(u)
+              setCountdown(5)
+            } else {
+              setError(authRes.detail || 'Telegram verification failed.')
+            }
+          } catch (err: any) {
+            setBusy(false)
+            const denied = accessDenied(err)
+            if (denied) {
+              if (denied.detail.startsWith('invite_') || denied.detail === 'invite_required') {
+                setShowInviteInput(true)
+                const map: Record<string, string> = {
+                  invite_required: 'An invite code is required.',
+                  invite_invalid: 'That invite code is not valid.',
+                  invite_expired: 'That invite code has expired.',
+                  invite_exhausted: 'That invite code has already been used.',
+                }
+                setInviteError(
+                  denied.detail === 'invite_required'
+                    ? 'An invite code is required for registration.'
+                    : (map[denied.detail] || denied.message || 'Invalid invite code.')
+                )
+                return
+              }
+              setDeniedChats(denied.detail === 'membership_required' ? denied.required_chats ?? [] : null)
+              setError(
+                denied.detail === 'account_locked'
+                  ? `Account locked. ${denied.message || ''}`.trim()
+                  : denied.detail === 'registration_closed'
+                  ? 'Registrations are closed. New accounts cannot be created.'
+                  : denied.detail === 'membership_required'
+                  ? (denied.message || 'You must join the required Telegram chat(s) before continuing.')
+                  : (denied.message || 'Access denied')
+              )
+              return
+            }
+            setError(err?.message || 'Failed to verify Telegram credentials.')
+          }
+        }
+      )
+
+      window.Telegram.Login.open()
+    } catch (e: any) {
+      setBusy(false)
+      setError(e?.message || 'Failed to open Telegram popup. You can try the Redirect method.')
     }
   }
 
@@ -589,6 +868,13 @@ function LoginPage() {
         return
       }
       setInviteError(null)
+
+      if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+        const ok = await handleMiniAppLogin(code)
+        if (ok) setPendingTgData(null)
+        return
+      }
+
       setBusy(true)
       try {
         const authRes = await http.post<{
@@ -838,9 +1124,18 @@ function LoginPage() {
             fullWidth
             size="lg"
             icon={<TelegramIcon className="size-5 text-[#2AABEE]" />}
-            onClick={startTelegramLogin}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+                handleMiniAppLogin()
+              } else {
+                setShowMethodModal(true)
+              }
+            }}
+            loading={busy}
           >
-            Continue with Telegram
+            {miniAppUser?.firstName
+              ? `Continue as ${miniAppUser.firstName}`
+              : 'Continue with Telegram'}
           </Button>
 
 
@@ -892,6 +1187,21 @@ function LoginPage() {
           </button>
         )}
       </form>
+
+      <TelegramMethodModal
+        open={showMethodModal}
+        onClose={() => {
+          stopBotPolling()
+          setShowMethodModal(false)
+        }}
+        onSelectPopup={startTelegramPopupLogin}
+        onSelectRedirect={startTelegramRedirectLogin}
+        onSelectBotApp={startTelegramBotAppLogin}
+        botUsername={tgConfig?.bot_username}
+        waitingForBot={waitingForBot}
+        botDeepLink={botDeepLink || undefined}
+        onCancelWaiting={stopBotPolling}
+      />
     </AuthCard>
   )
 }

@@ -3,11 +3,13 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Lock, User, Eye, EyeOff, ArrowRight, KeyRound, MessageCircle, Ticket, ExternalLink } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import { registerUser, validateOtp } from '@/api/auth'
+import { registerUser, validateOtp, fetchTelegramConfig, loginWithTelegramToken, createTelegramBotSession, checkTelegramBotSessionStatus, loginWithTelegramMiniApp, type TelegramConfig } from '@/api/auth'
 import { fetchAccessStatus, accessDenied, type AccessStatus, type RequiredChat } from '@/api/access'
 import { AuthCard, ErrorBanner } from '@/components/auth/AuthCard'
 import { Button, TextField } from '@/components/md3'
 import { TelegramIcon } from '@/components/common/TelegramIcon'
+import { TelegramMethodModal } from '@/components/auth/TelegramMethodModal'
+import { loadTelegramLoginScript, type TelegramLoginResult } from '@/lib/telegramLogin'
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -28,12 +30,171 @@ function SignupPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [policy, setPolicy] = useState<AccessStatus | null>(null)
   const [missingChats, setMissingChats] = useState<RequiredChat[] | null>(null)
+  const [tgConfig, setTgConfig] = useState<TelegramConfig | null>(null)
+  const [showMethodModal, setShowMethodModal] = useState(false)
+  const [waitingForBot, setWaitingForBot] = useState(false)
+  const [botDeepLink, setBotDeepLink] = useState<string | null>(null)
+  const botPollIntervalRef = React.useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (botPollIntervalRef.current) clearInterval(botPollIntervalRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     let alive = true
     fetchAccessStatus().then((p) => alive && setPolicy(p)).catch(() => alive && setPolicy({ registration_mode: 'open', enforce_membership: false, required_chats: [] }))
+    fetchTelegramConfig(apiBaseUrl).then((c) => alive && setTgConfig(c)).catch(() => {})
+    loadTelegramLoginScript().catch(() => {})
     return () => { alive = false }
-  }, [])
+  }, [apiBaseUrl])
+
+  const stopBotPolling = () => {
+    if (botPollIntervalRef.current) {
+      clearInterval(botPollIntervalRef.current)
+      botPollIntervalRef.current = null
+    }
+    setWaitingForBot(false)
+    setBotDeepLink(null)
+  }
+
+  const handleMiniAppLogin = async () => {
+    if (typeof window === 'undefined') return
+    const tg = window.Telegram?.WebApp
+    if (!tg?.initData) return
+    setError(null)
+    setBusy(true)
+    const cleanCode = inviteCode.trim().toUpperCase()
+    try {
+      const res = await loginWithTelegramMiniApp(tg.initData, cleanCode || undefined)
+      login(res.user, res.token)
+      navigate({ to: '/' })
+    } catch (err: any) {
+      if (explainDenied(err)) return
+      setError(err?.message || 'Telegram Mini App registration failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const startTelegramBotAppLogin = async () => {
+    setError(null)
+    setBusy(true)
+    try {
+      const cleanCode = inviteCode.trim().toUpperCase()
+      const session = await createTelegramBotSession(cleanCode || undefined)
+      if (!session.ok || !session.session_id) {
+        throw new Error('Could not create bot authorization session')
+      }
+
+      setWaitingForBot(true)
+      const link = session.tg_url || session.web_url
+      setBotDeepLink(session.web_url || session.tg_url)
+      setBusy(false)
+
+      // Try opening Telegram app protocol
+      if (typeof window !== 'undefined' && link) {
+        window.location.href = session.tg_url || session.web_url
+      }
+
+      // Poll for bot confirmation
+      if (botPollIntervalRef.current) clearInterval(botPollIntervalRef.current)
+      botPollIntervalRef.current = window.setInterval(async () => {
+        try {
+          const status = await checkTelegramBotSessionStatus(session.session_id)
+          if (status.status === 'confirmed' && status.token && status.user) {
+            stopBotPolling()
+            setShowMethodModal(false)
+            login(status.user, status.token)
+            navigate({ to: '/' })
+          } else if (status.status === 'expired' || status.status === 'not_found') {
+            stopBotPolling()
+            setError('Telegram authorization expired. Please try again.')
+          }
+        } catch {
+          // keep polling
+        }
+      }, 1500)
+    } catch (err: any) {
+      setBusy(false)
+      setError(err?.message || 'Failed to start Telegram app authorization')
+    }
+  }
+
+  const startTelegramRedirectLogin = () => {
+    stopBotPolling()
+    setShowMethodModal(false)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('tg_auth_redirect', '/')
+    }
+    const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const cleanCode = inviteCode.trim().toUpperCase()
+    const startUrl = `${apiBaseUrl.replace(/\/$/, '')}/auth/telegram/start?redirect=${encodeURIComponent('/')}&frontend_url=${encodeURIComponent(frontendUrl)}${cleanCode ? `&invite_code=${encodeURIComponent(cleanCode)}` : ''}`
+    window.location.href = startUrl
+  }
+
+  const startTelegramPopupLogin = async () => {
+    setShowMethodModal(false)
+    setError(null)
+    setBusy(true)
+
+    try {
+      await loadTelegramLoginScript()
+      if (!window.Telegram?.Login) {
+        throw new Error('Telegram Login library could not be loaded.')
+      }
+
+      const clientId = Number(tgConfig?.client_id || '8879601665')
+      if (!clientId || isNaN(clientId)) {
+        throw new Error('Invalid Telegram Client ID.')
+      }
+
+      const cleanCode = inviteCode.trim().toUpperCase()
+
+      window.Telegram.Login.init(
+        {
+          client_id: clientId,
+          request_access: ['write'],
+          lang: typeof navigator !== 'undefined' && navigator.language ? navigator.language.slice(0, 2) : 'en',
+        },
+        async (data: TelegramLoginResult) => {
+          if (data.error) {
+            setBusy(false)
+            if (data.error === 'popup_closed' || data.error === 'access_denied') {
+              setError('Telegram sign-in was cancelled.')
+            } else {
+              setError(`Telegram sign-in failed: ${data.error}`)
+            }
+            return
+          }
+
+          if (!data.id_token) {
+            setBusy(false)
+            setError('No authentication token received from Telegram.')
+            return
+          }
+
+          try {
+            setBusy(true)
+            const { user, token } = await loginWithTelegramToken(data.id_token, cleanCode || undefined)
+            login(user, token)
+            navigate({ to: '/' })
+          } catch (err: any) {
+            if (explainDenied(err)) return
+            setError(err?.message || 'Telegram verification failed.')
+          } finally {
+            setBusy(false)
+          }
+        }
+      )
+
+      window.Telegram.Login.open()
+    } catch (err: any) {
+      setBusy(false)
+      setError(err?.message || 'Could not launch Telegram login.')
+    }
+  }
   const closed = policy?.registration_mode === 'closed'
   const inviteMode = policy?.registration_mode === 'invite'
 
@@ -148,15 +309,17 @@ function SignupPage() {
             size="lg"
             icon={<TelegramIcon className="size-5 text-[#2AABEE]" />}
             onClick={() => {
-              if (typeof window !== 'undefined') {
-                sessionStorage.setItem('tg_auth_redirect', '/')
+              if (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) {
+                handleMiniAppLogin()
+              } else {
+                setShowMethodModal(true)
               }
-              const frontendUrl = typeof window !== 'undefined' ? window.location.origin : ''
-              const startUrl = `${apiBaseUrl.replace(/\/$/, '')}/auth/telegram/start?redirect=${encodeURIComponent('/')}&frontend_url=${encodeURIComponent(frontendUrl)}`
-              window.location.href = startUrl
             }}
+            loading={busy}
           >
-            Continue with Telegram
+            {window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name
+              ? `Continue as ${window.Telegram.WebApp.initDataUnsafe.user.first_name}`
+              : 'Continue with Telegram'}
           </Button>
           <div className="relative flex items-center">
             <div className="grow border-t border-outline-variant" />
@@ -186,6 +349,21 @@ function SignupPage() {
           <button type="button" onClick={() => setStep('details')} className="w-full type-label-lg text-primary h-10">Back</button>
         </form>
       )}
+
+      <TelegramMethodModal
+        open={showMethodModal}
+        onClose={() => {
+          stopBotPolling()
+          setShowMethodModal(false)
+        }}
+        onSelectPopup={startTelegramPopupLogin}
+        onSelectRedirect={startTelegramRedirectLogin}
+        onSelectBotApp={startTelegramBotAppLogin}
+        botUsername={tgConfig?.bot_username}
+        waitingForBot={waitingForBot}
+        botDeepLink={botDeepLink || undefined}
+        onCancelWaiting={stopBotPolling}
+      />
     </AuthCard>
   )
 }
