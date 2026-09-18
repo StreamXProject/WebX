@@ -38,7 +38,7 @@ import { Route as SettingsLyricsRouteImport } from './routes/settings/lyrics'
 import { Route as SettingsPlaybackRouteImport } from './routes/settings/playback'
 import { Route as SettingsServerRouteImport } from './routes/settings/server'
 import { Route as SettingsShortcutsRouteImport } from './routes/settings/shortcuts'
-import { Route as TopicNameRouteImport } from './routes/topic/$name'
+import { Route as TopicSplatRouteImport } from './routes/topic/$'
 import { Route as TrackTrackIdRouteImport } from './routes/track/$trackId'
 import { Route as RecapTypePeriodRouteImport } from './routes/recap/$type/$period'
 import { Route as RecapShareTokenRouteImport } from './routes/recap/share/$token'
@@ -189,9 +189,9 @@ const SettingsShortcutsRoute = SettingsShortcutsRouteImport.update({
   path: '/shortcuts',
   getParentRoute: () => SettingsRoute,
 } as any)
-const TopicNameRoute = TopicNameRouteImport.update({
-  id: '/topic/$name',
-  path: '/topic/$name',
+const TopicSplatRoute = TopicSplatRouteImport.update({
+  id: '/topic/$',
+  path: '/topic/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackTrackIdRoute = TrackTrackIdRouteImport.update({
@@ -242,7 +242,7 @@ export interface FileRoutesByFullPath {
   '/settings/playback': typeof SettingsPlaybackRoute
   '/settings/server': typeof SettingsServerRoute
   '/settings/shortcuts': typeof SettingsShortcutsRoute
-  '/topic/$name': typeof TopicNameRoute
+  '/topic/$': typeof TopicSplatRoute
   '/track/$trackId': typeof TrackTrackIdRoute
   '/albums/': typeof AlbumsIndexRoute
   '/artists/': typeof ArtistsIndexRoute
@@ -277,7 +277,7 @@ export interface FileRoutesByTo {
   '/settings/playback': typeof SettingsPlaybackRoute
   '/settings/server': typeof SettingsServerRoute
   '/settings/shortcuts': typeof SettingsShortcutsRoute
-  '/topic/$name': typeof TopicNameRoute
+  '/topic/$': typeof TopicSplatRoute
   '/track/$trackId': typeof TrackTrackIdRoute
   '/albums': typeof AlbumsIndexRoute
   '/artists': typeof ArtistsIndexRoute
@@ -314,7 +314,7 @@ export interface FileRoutesById {
   '/settings/playback': typeof SettingsPlaybackRoute
   '/settings/server': typeof SettingsServerRoute
   '/settings/shortcuts': typeof SettingsShortcutsRoute
-  '/topic/$name': typeof TopicNameRoute
+  '/topic/$': typeof TopicSplatRoute
   '/track/$trackId': typeof TrackTrackIdRoute
   '/albums/': typeof AlbumsIndexRoute
   '/artists/': typeof ArtistsIndexRoute
@@ -352,7 +352,7 @@ export interface FileRouteTypes {
     | '/settings/playback'
     | '/settings/server'
     | '/settings/shortcuts'
-    | '/topic/$name'
+    | '/topic/$'
     | '/track/$trackId'
     | '/albums/'
     | '/artists/'
@@ -387,7 +387,7 @@ export interface FileRouteTypes {
     | '/settings/playback'
     | '/settings/server'
     | '/settings/shortcuts'
-    | '/topic/$name'
+    | '/topic/$'
     | '/track/$trackId'
     | '/albums'
     | '/artists'
@@ -423,7 +423,7 @@ export interface FileRouteTypes {
     | '/settings/playback'
     | '/settings/server'
     | '/settings/shortcuts'
-    | '/topic/$name'
+    | '/topic/$'
     | '/track/$trackId'
     | '/albums/'
     | '/artists/'
@@ -449,7 +449,7 @@ export interface RootRouteChildren {
   ExploreArtistsRoute: typeof ExploreArtistsRoute
   MixMixIdRoute: typeof MixMixIdRoute
   PlaylistPlaylistIdRoute: typeof PlaylistPlaylistIdRoute
-  TopicNameRoute: typeof TopicNameRoute
+  TopicSplatRoute: typeof TopicSplatRoute
   TrackTrackIdRoute: typeof TrackTrackIdRoute
   AlbumsIndexRoute: typeof AlbumsIndexRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
@@ -663,11 +663,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsShortcutsRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/topic/$name': {
-      id: '/topic/$name'
-      path: '/topic/$name'
-      fullPath: '/topic/$name'
-      preLoaderRoute: typeof TopicNameRouteImport
+    '/topic/$': {
+      id: '/topic/$'
+      path: '/topic/$'
+      fullPath: '/topic/$'
+      preLoaderRoute: typeof TopicSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track/$trackId': {
@@ -751,7 +751,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreArtistsRoute: ExploreArtistsRoute,
   MixMixIdRoute: MixMixIdRoute,
   PlaylistPlaylistIdRoute: PlaylistPlaylistIdRoute,
-  TopicNameRoute: TopicNameRoute,
+  TopicSplatRoute: TopicSplatRoute,
   TrackTrackIdRoute: TrackTrackIdRoute,
   AlbumsIndexRoute: AlbumsIndexRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,

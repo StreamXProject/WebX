@@ -9,12 +9,20 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { TrackRowSkeleton } from '@/components/common/Skeleton'
 import { pluralize } from '@/lib/format'
 
-export const Route = createFileRoute('/topic/$name')({
+export const Route = createFileRoute('/topic/$')({
   component: TopicPage,
 })
 
 function TopicPage() {
-  const { name } = Route.useParams()
+  const { _splat } = Route.useParams()
+  const name = useMemo(() => {
+    try {
+      return decodeURIComponent(_splat || '')
+    } catch {
+      return _splat || ''
+    }
+  }, [_splat])
+
   const { data, isLoading, isError, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteTopicTracks(name)
   const playTrackWithQueue = useQueueStore((s) => s.playTrackWithQueue)
   const tracks = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])

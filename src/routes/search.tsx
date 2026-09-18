@@ -119,7 +119,7 @@ function SearchPage() {
                 {topics.data.slice(0, 16).map((t, i) => (
                   <button
                     key={t.name}
-                    onClick={() => navigate({ to: '/topic/$name', params: { name: t.name } })}
+                    onClick={() => navigate({ to: '/topic/$', params: { _splat: t.name } })}
                     className={cn('state-layer h-24 rounded-lg p-4 text-left flex flex-col justify-between overflow-hidden relative', ['bg-primary-container text-on-primary-container', 'bg-secondary-container text-on-secondary-container', 'bg-tertiary-container text-on-tertiary-container', 'bg-surface-highest text-on-surface'][i % 4])}
                   >
                     <span className="type-title-md truncate">{t.name}</span>
