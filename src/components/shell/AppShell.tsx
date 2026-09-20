@@ -104,6 +104,8 @@ export const AppShell: React.FC = () => {
       if (s.currentTrack && s.isPlaying) useLibraryStore.getState().addToRecent(s.currentTrack)
     })
     const unsubErr = audioEngine.onError((msg, track) => {
+      const state = audioEngine.getState()
+      if (state.status === 'idle') return
       toast(`${msg}${track ? ` — ${track.title}` : ''}`, {
         variant: 'error',
         duration: 6000,

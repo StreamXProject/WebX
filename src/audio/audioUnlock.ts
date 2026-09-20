@@ -19,7 +19,7 @@ const AUDIO_UNLOCK_KEY = '__webx_audio_unlocked__'
 
 let isUnlocked = false
 
-export async function unlockAudioOnce(): Promise<void> {
+export async function unlockAudioOnce(targetAudio?: HTMLAudioElement): Promise<void> {
   if (typeof window === 'undefined') return
   const w = window as unknown as Record<string, unknown>
   if (isUnlocked || w[AUDIO_UNLOCK_KEY] === true) {

@@ -42,6 +42,7 @@ export class AudioEngine {
   private errorListeners = new Set<ErrorListener>()
 
   private currentTrack: Track | null = null
+  private pendingStartAt = 0
   private isBuffering = false
   private lastError: string | null = null
   private loadSeq = 0
@@ -201,14 +202,26 @@ export class AudioEngine {
   public async loadTrack(track: Track, autoPlay = true, startAt = 0): Promise<void> {
     const seq = ++this.loadSeq
     this.clearPoll()
-    this.currentTrack = track
+    if (!autoPlay) {
+      this.currentTrack = track
+      this.pendingStartAt = startAt
+      this.isBuffering = false
+      this.lastError = null
+      this.setupMediaSession(track)
+      this.emitState()
+      this.emitProgress()
+      this.resolver?.warm(track.id).catch(() => {})
+      return
+    }
+
+    this.pendingStartAt = 0
     this.isBuffering = true
     this.lastError = null
     this.emitState()
     this.setupMediaSession(track)
 
     if (autoPlay) {
-      void unlockAudioOnce()
+      void unlockAudioOnce(this.audio)
     }
 
     const url = this.resolver ? this.resolver.url(track) : track.stream_url || ''
@@ -354,9 +367,15 @@ export class AudioEngine {
   }
 
   public async play(): Promise<void> {
-    void unlockAudioOnce()
+    void unlockAudioOnce(this.audio)
     equalizer.resume()
-    if (!this.audio.src && this.currentTrack) return this.loadTrack(this.currentTrack, true)
+    const currentSrc = this.audio.src || ''
+    const isEmpty = !currentSrc || currentSrc === '' || currentSrc === (typeof window !== 'undefined' ? window.location.href : '')
+    if (isEmpty && this.currentTrack) {
+      const startAt = this.pendingStartAt || 0
+      this.pendingStartAt = 0
+      return this.loadTrack(this.currentTrack, true, startAt)
+    }
     try {
       await this.audio.play()
     } catch (err) {
@@ -369,7 +388,7 @@ export class AudioEngine {
   }
 
   public togglePlay(): void {
-    void unlockAudioOnce()
+    void unlockAudioOnce(this.audio)
     equalizer.resume()
     if (this.audio.paused) void this.play()
     else this.pause()
@@ -382,6 +401,7 @@ export class AudioEngine {
     this.audio.removeAttribute('src')
     this.audio.load()
     this.currentTrack = null
+    this.pendingStartAt = 0
     this.isBuffering = false
     this.emitState()
     this.emitProgress()
@@ -391,7 +411,14 @@ export class AudioEngine {
   public seek(seconds: number): void {
     const d = this.audio.duration || this.currentTrack?.duration_sec || 0
     if (!Number.isFinite(seconds) || !d) return
-    this.audio.currentTime = Math.max(0, Math.min(seconds, d))
+    const clamped = Math.max(0, Math.min(seconds, d))
+    const currentSrc = this.audio.src || ''
+    const isEmpty = !currentSrc || currentSrc === '' || currentSrc === (typeof window !== 'undefined' ? window.location.href : '')
+    if (isEmpty) {
+      this.pendingStartAt = clamped
+    } else {
+      this.audio.currentTime = clamped
+    }
     this.emitProgress()
   }
 
@@ -401,7 +428,8 @@ export class AudioEngine {
   }
 
   public seekBy(deltaSeconds: number): void {
-    this.seek((this.audio.currentTime || 0) + deltaSeconds)
+    const current = this.audio.currentTime > 0 ? this.audio.currentTime : (this.pendingStartAt || 0)
+    this.seek(current + deltaSeconds)
   }
 
   public setVolume(volume: number): void {
@@ -443,8 +471,8 @@ export class AudioEngine {
   }
 
   public getProgress(): ProgressState {
-    const currentTime = this.audio.currentTime || 0
-    const duration = (Number.isFinite(this.audio.duration) && this.audio.duration) || this.currentTrack?.duration_sec || 0
+    const currentTime = this.audio.currentTime > 0 ? this.audio.currentTime : (this.pendingStartAt || 0)
+    const duration = (Number.isFinite(this.audio.duration) && this.audio.duration > 0 && this.audio.duration) || this.currentTrack?.duration_sec || 0
     let buffered = 0
     try {
       const b = this.audio.buffered
