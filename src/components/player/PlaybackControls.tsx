@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Repeat1 } from 'lucide-react'
+import { SkipBack, SkipForward, Shuffle, Repeat, Repeat1 } from 'lucide-react'
+import { PlayPauseIcon } from './PlayPauseIcon'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useQueueStore } from '@/stores/queueStore'
 import { IconButton } from '@/components/md3'
@@ -48,13 +49,11 @@ export const PlaybackControls: React.FC<{ size?: 'sm' | 'lg'; className?: string
         aria-label={isPlaying ? 'Pause' : 'Play'}
         data-playing={isPlaying}
         className={cn(
-          'play-toggle state-layer relative inline-flex items-center justify-center bg-primary text-on-primary shadow-md3-1 transition-[border-radius,transform] duration-300 ease-emphasized active:scale-95 disabled:opacity-40',
-          lg ? 'size-16 sm:size-[72px] [&_svg]:size-8' : 'size-12 [&_svg]:size-6',
-          isPlaying ? 'rounded-lg' : 'rounded-full'
+          'play-toggle state-layer relative inline-flex items-center justify-center rounded-lg bg-primary text-on-primary shadow-md3-1 disabled:opacity-40',
+          lg ? 'size-16 sm:size-[72px]' : 'size-12'
         )}
       >
-        <Play className={cn('absolute fill-current ml-0.5 transition-[opacity,transform] duration-300 ease-emphasized', isPlaying ? 'opacity-0 scale-50 rotate-90' : 'opacity-100 scale-100 rotate-0')} />
-        <Pause className={cn('absolute fill-current transition-[opacity,transform] duration-300 ease-emphasized', isPlaying ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-90')} />
+        <PlayPauseIcon isPlaying={isPlaying} className={lg ? 'size-8' : 'size-6'} />
         {showSpinner && (
           <span
             aria-hidden
