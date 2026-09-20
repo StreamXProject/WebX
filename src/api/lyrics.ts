@@ -47,6 +47,17 @@ export function splitGraphemes(text: string): string[] {
   return matches || Array.from(text)
 }
 
+/**
+ * Detects whether text contains complex scripts that rely on ligatures,
+ * pre-base vowels, and cursive attachment (Devanagari, Bengali, Gurmukhi,
+ * Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Sinhala, Arabic, Urdu).
+ * Splitting words of these scripts into individual character spans breaks
+ * font shaping (such as the Devanagari/Bengali Shirorekha headline).
+ */
+export function isComplexScript(text: string): boolean {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0900-\u0D7F\u0D80-\u0DFF\uA8E0-\uA8FF\u1CD0-\u1CFF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text)
+}
+
 /** Char-count estimation mirroring piTube estimateWords / Apple Music V2 fallback */
 export function estimateLineWords(line: LyricLine, activeDurationSec = 3.5): LyricWordSpan[] {
   if (line.spans && line.spans.length > 0) return line.spans
