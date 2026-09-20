@@ -45,6 +45,127 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/auth': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/tracks': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/browse': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/playlists': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/favourites': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/me': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/jam': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/friends': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/presence': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/notifications': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/access': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/cover': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/topics': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/albums': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/artists': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/search': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/recaps': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/share': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass: (req) => (req.headers.accept?.includes('text/html') ? req.url : undefined),
+      },
+      '/sources': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/logs': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/discord': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/soundcloud': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/yt_dlp': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/webapp': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/admin': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/channelids': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/daily-playlist': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     environment: 'node',

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Heart, Mic2, ListMusic, Maximize2, Play, Pause, SkipForward, SkipBack, Music2 } from 'lucide-react'
+import { Heart, Mic2, ListMusic, Maximize2, SkipForward, SkipBack, Music2 } from 'lucide-react'
+import { PlayPauseIcon } from './PlayPauseIcon'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useQueueStore } from '@/stores/queueStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -127,8 +128,16 @@ export const PersistentPlayer: React.FC = () => {
         <IconButton label={isLiked ? 'Unlike' : 'Like'} selected={isLiked} onClick={() => void toggleLike(track)}>
           <Heart className={cn(isLiked && 'fill-current')} />
         </IconButton>
-        <button onClick={togglePlay} aria-label={isPlaying ? 'Pause' : 'Play'} className={cn('state-layer size-11 bg-primary text-on-primary flex items-center justify-center transition-[border-radius] duration-300 ease-emphasized', isPlaying ? 'rounded-md' : 'rounded-full')}>
-          {isBuffering ? <span className="size-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" /> : isPlaying ? <Pause className="size-5 fill-current" /> : <Play className="size-5 fill-current ml-0.5" />}
+        <button
+          onClick={togglePlay}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          className="state-layer size-11 rounded-lg bg-primary text-on-primary flex items-center justify-center shadow-md3-1"
+        >
+          {isBuffering ? (
+            <span className="size-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
+          ) : (
+            <PlayPauseIcon isPlaying={isPlaying} className="size-5" />
+          )}
         </button>
         <IconButton label="Next" onClick={() => void nextTrack()}><SkipForward className="fill-current" /></IconButton>
       </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseLrc, stripLrcTags } from '@/api/lyrics'
+import { parseLrc, stripLrcTags, isComplexScript } from '@/api/lyrics'
 
 describe('LRC parser', () => {
   it('parses timestamps with 2- and 3-digit fractions', () => {
@@ -30,6 +30,32 @@ describe('LRC parser', () => {
   it('returns empty for plain lyrics and strips tags', () => {
     expect(parseLrc('just words')).toEqual([])
     expect(stripLrcTags('[00:01.00]<00:01.00>a <00:01.50>b\n[00:02.00]c')).toBe('a b\nc')
+  })
+})
+
+describe('isComplexScript', () => {
+  it('detects Hindi/Devanagari text', () => {
+    expect(isComplexScript('जान-ए-जिगर')).toBe(true)
+    expect(isComplexScript('दिलबर')).toBe(true)
+    expect(isComplexScript('ओ,')).toBe(true)
+  })
+
+  it('detects Bengali text', () => {
+    expect(isComplexScript('তুমি আসবে বলে')).toBe(true)
+    expect(isComplexScript('ভালোবাসা')).toBe(true)
+  })
+
+  it('detects other Indic and RTL scripts', () => {
+    expect(isComplexScript('ਪੰਜਾਬੀ')).toBe(true) // Gurmukhi
+    expect(isComplexScript('ગુજરાતી')).toBe(true) // Gujarati
+    expect(isComplexScript('தமிழ்')).toBe(true) // Tamil
+    expect(isComplexScript('తెలుగు')).toBe(true) // Telugu
+    expect(isComplexScript('اردو')).toBe(true) // Urdu
+  })
+
+  it('returns false for Latin/English text', () => {
+    expect(isComplexScript('Never gonna give you up')).toBe(false)
+    expect(isComplexScript('Hello world 123!?:;')).toBe(false)
   })
 })
 

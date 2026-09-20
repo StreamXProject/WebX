@@ -7,7 +7,7 @@ import { usePlayerStore } from '@/stores/playerStore'
 import { audioEngine } from '@/audio/AudioEngine'
 import { cn } from '@/lib/cn'
 import type { LyricLine, LyricWordSpan } from '@/schemas/track'
-import { estimateLineWords, splitGraphemes } from '@/api/lyrics'
+import { estimateLineWords, splitGraphemes, isComplexScript } from '@/api/lyrics'
 import { Skeleton } from '@/components/common/Skeleton'
 
 function indexAt(lines: LyricLine[], t: number): number {
@@ -68,8 +68,34 @@ const ActiveLineRenderer: React.FC<{
         )}
       >
         {words.map((w, wIdx) => {
-          const chars = splitGraphemes(w.text)
           const wDur = w.duration || 0.35
+          const isComplex = isComplexScript(w.text)
+
+          if (isComplex) {
+            const isPassed = time >= w.time + wDur
+            const isWordActive = time >= w.time && time < w.time + wDur
+            const wProg = Math.max(0, Math.min(1, (time - w.time) / wDur))
+            const alpha = isPassed ? 1 : isWordActive ? Math.max(0.35, 0.35 + 0.65 * wProg) : 0.35
+
+            return (
+              <span
+                key={wIdx}
+                className="font-semibold mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
+                style={{
+                  opacity: alpha,
+                  color: isPassed || isWordActive ? 'var(--color-primary)' : 'var(--color-on-surface)',
+                  textShadow:
+                    glow && (isPassed || isWordActive)
+                      ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
+                      : undefined,
+                }}
+              >
+                {w.text}
+              </span>
+            )
+          }
+
+          const chars = splitGraphemes(w.text)
           const charDur = chars.length > 0 ? wDur / chars.length : 0.05
 
           return (
