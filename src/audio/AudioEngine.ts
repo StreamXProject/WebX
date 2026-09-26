@@ -202,8 +202,8 @@ export class AudioEngine {
   public async loadTrack(track: Track, autoPlay = true, startAt = 0): Promise<void> {
     const seq = ++this.loadSeq
     this.clearPoll()
+    this.currentTrack = track
     if (!autoPlay) {
-      this.currentTrack = track
       this.pendingStartAt = startAt
       this.isBuffering = false
       this.lastError = null

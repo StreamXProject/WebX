@@ -114,20 +114,44 @@ export function resolveTheme(def: ThemeDefinition): ResolvedTheme {
 /** Extract a seed color from an image URL (used for "Material You" from artwork) */
 export async function seedFromImage(url: string): Promise<string | null> {
   if (typeof window === 'undefined' || !url) return null
+  let objectUrl: string | null = null
   try {
+    // 1. Try fetching via fetch() as Blob first: creates a same-origin Blob URL which bypasses
+    // canvas taint and cached non-CORS headers completely.
+    try {
+      const res = await fetch(url, { mode: 'cors' })
+      if (res.ok) {
+        const blob = await res.blob()
+        objectUrl = URL.createObjectURL(blob)
+      }
+    } catch {
+      // Direct CORS fetch failed; proceed to direct image load
+    }
+
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.decoding = 'async'
-    const loaded = new Promise<void>((res, rej) => {
-      img.onload = () => res()
-      img.onerror = () => rej(new Error('image failed'))
+    const loaded = new Promise<void>((resolve, reject) => {
+      if (img.complete && img.naturalWidth > 0) {
+        resolve()
+        return
+      }
+      img.onload = () => resolve()
+      img.onerror = (e) => reject(e)
     })
-    img.src = url
+
+    // If fetch didn't give a blob, add cache-busting query param so browser cache without CORS headers isn't reused
+    img.src = objectUrl || (url.startsWith('data:') || url.startsWith('blob:') ? url : (url.includes('?') ? `${url}&_cors=1` : `${url}?_cors=1`))
+
     await loaded
     const argb = await sourceColorFromImage(img)
     return hexFromArgb(argb).toUpperCase()
   } catch {
     return null
+  } finally {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl)
+    }
   }
 }
 

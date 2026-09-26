@@ -13,6 +13,7 @@ import { resolveTheme, seedFromImage, schemeToColors } from './scheme'
 import { applyTheme } from './apply'
 import { ThemeDefinitionSchema, type ColorScheme, type ThemeDefinition, type ThemeMode } from './tokens'
 import { Hct, argbFromHex, SchemeTonalSpot, SchemeVibrant } from '@material/material-color-utilities'
+import { usePlayerStore } from '@/stores/playerStore'
 
 const KEYS = {
   active: 'webx.theme.active',
@@ -105,6 +106,12 @@ export const useThemeStore = create<ThemeStoreState>()(
       setDynamicColor: (on) => {
         localStorage.setItem(KEYS.dynamic, String(on))
         set({ dynamicColor: on })
+        if (on) {
+          const track = usePlayerStore.getState().currentTrack
+          void get().setDynamicSeedFromImage(track?.cover_url ?? null)
+        } else {
+          set({ dynamicSeed: null })
+        }
       },
       setDynamicSeedFromImage: async (url) => {
         if (!url) {
@@ -198,6 +205,24 @@ if (typeof window !== 'undefined') {
     () => applyFromState(),
     { equalityFn: (a, b) => a.every((v, i) => v === b[i]) }
   )
+
+  // Automatically update dynamic seed whenever currentTrack changes in playerStore
+  usePlayerStore.subscribe((state, prevState) => {
+    const coverUrl = state.currentTrack?.cover_url ?? null
+    const prevCoverUrl = prevState?.currentTrack?.cover_url ?? null
+    if (coverUrl !== prevCoverUrl) {
+      const themeState = useThemeStore.getState()
+      if (themeState.dynamicColor) {
+        void themeState.setDynamicSeedFromImage(coverUrl)
+      }
+    }
+  })
+
+  // Initial check on startup
+  const initTrack = usePlayerStore.getState().currentTrack
+  if (useThemeStore.getState().dynamicColor && initTrack?.cover_url) {
+    void useThemeStore.getState().setDynamicSeedFromImage(initTrack.cover_url)
+  }
   const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
   mq?.addEventListener?.('change', () => {
     const s = useThemeStore.getState()
