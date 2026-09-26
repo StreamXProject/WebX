@@ -4,10 +4,33 @@ import { ArtistSchema, type Artist, type ArtistDetail } from '@/schemas/artist'
 import { AlbumSchema } from '@/schemas/album'
 import { parseTracks } from '@/schemas/track'
 
+export interface PaginatedArtists {
+  items: Artist[]
+  page: number
+  per_page: number
+  total: number
+}
+
 export async function fetchArtists(signal?: AbortSignal, limit = 200): Promise<Artist[]> {
   const raw = await http.get<{ items?: unknown[] } | unknown[]>(API_ENDPOINTS.ARTISTS, { signal, params: { limit } })
   const items = Array.isArray(raw) ? raw : raw?.items ?? []
   return items.map((i) => ArtistSchema.safeParse(i)).filter((r) => r.success).map((r) => r.data!).filter((a) => a.id)
+}
+
+export async function fetchArtistsPage(page = 1, limit = 50, signal?: AbortSignal): Promise<PaginatedArtists> {
+  const raw = await http.get<{ ok?: boolean; page?: number; per_page?: number; total?: number; items?: unknown[] } | unknown[]>(
+    API_ENDPOINTS.ARTISTS,
+    { signal, params: { page, limit } }
+  )
+  const itemsRaw = Array.isArray(raw) ? raw : (raw as { items?: unknown[] })?.items ?? []
+  const items = itemsRaw.map((i) => ArtistSchema.safeParse(i)).filter((r) => r.success).map((r) => r.data!).filter((a) => a.id)
+  const resObj = !Array.isArray(raw) && raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+  return {
+    items,
+    page: typeof resObj?.page === 'number' ? resObj.page : page,
+    per_page: typeof resObj?.per_page === 'number' ? resObj.per_page : limit,
+    total: typeof resObj?.total === 'number' ? resObj.total : items.length,
+  }
 }
 
 export async function fetchArtistById(artistId: string, signal?: AbortSignal): Promise<ArtistDetail> {

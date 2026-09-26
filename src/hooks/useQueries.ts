@@ -1,7 +1,7 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import { fetchBrowseTracks, fetchFeaturedMixes, fetchMixTracks, fetchShuffle, fetchTopics, fetchTopicTracks, fetchTopicTracksPage } from '@/api/browse'
-import { fetchAlbums, fetchAlbumById } from '@/api/albums'
-import { fetchArtists, fetchArtistById } from '@/api/artists'
+import { fetchAlbums, fetchAlbumById, fetchAlbumsPage } from '@/api/albums'
+import { fetchArtists, fetchArtistById, fetchArtistsPage } from '@/api/artists'
 import { fetchTrackLyrics } from '@/api/lyrics'
 import { searchAll } from '@/api/search'
 import { fetchHistory, fetchTopPlayed } from '@/api/favourites'
@@ -75,6 +75,17 @@ export function useAlbums() {
   return useQuery({ queryKey: QUERY_KEYS.ALBUMS, queryFn: ({ signal }) => fetchAlbums(signal), enabled })
 }
 
+export function useInfiniteAlbums(limit = 50, artistFilter?: string) {
+  const enabled = useHasToken()
+  return useInfiniteQuery({
+    queryKey: [...QUERY_KEYS.ALBUMS, 'infinite', limit, artistFilter ?? ''],
+    queryFn: ({ pageParam = 1, signal }) => fetchAlbumsPage(pageParam, limit, signal, artistFilter),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.items.length > 0 && last.page * last.per_page < last.total ? last.page + 1 : undefined),
+    enabled,
+  })
+}
+
 export function useAlbumDetail(albumId: string) {
   return useQuery({ queryKey: QUERY_KEYS.ALBUM_DETAIL(albumId), queryFn: ({ signal }) => fetchAlbumById(albumId, signal), enabled: Boolean(albumId) })
 }
@@ -82,6 +93,17 @@ export function useAlbumDetail(albumId: string) {
 export function useArtists() {
   const enabled = useHasToken()
   return useQuery({ queryKey: QUERY_KEYS.ARTISTS, queryFn: ({ signal }) => fetchArtists(signal), enabled })
+}
+
+export function useInfiniteArtists(limit = 50) {
+  const enabled = useHasToken()
+  return useInfiniteQuery({
+    queryKey: [...QUERY_KEYS.ARTISTS, 'infinite', limit],
+    queryFn: ({ pageParam = 1, signal }) => fetchArtistsPage(pageParam, limit, signal),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.items.length > 0 && last.page * last.per_page < last.total ? last.page + 1 : undefined),
+    enabled,
+  })
 }
 
 export function useArtistDetail(artistId: string) {
