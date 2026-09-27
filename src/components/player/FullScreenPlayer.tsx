@@ -278,7 +278,7 @@ export const FullScreenPlayer: React.FC = () => {
               data-playing={isPlaying}
               style={isDesktop ? undefined : { width: 'min(86vw, 40vh, 520px)' }}
             >
-              <Artwork src={track.cover_url} alt={track.title} priority className="aspect-square w-full rounded-xl" />
+              <Artwork src={track.big_cover_url || track.cover_url} alt={track.title} priority className="aspect-square w-full rounded-xl" />
             </div>
           </div>
 

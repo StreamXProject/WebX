@@ -17,6 +17,9 @@ export const TrackCoreSchema = z
     artist_id: z.string().optional().nullable(),
     duration_sec: z.number().optional().nullable(),
     cover_url: z.string().optional().nullable(),
+    big_cover_url: z.string().optional().nullable(),
+    cloudflare_cover_url: z.string().optional().nullable(),
+    cloudflare_big_cover_url: z.string().optional().nullable(),
     liked: z.boolean().optional().default(false),
     spotify_url: z.string().optional().nullable(),
     stream_url: z.string().optional().nullable(),
@@ -42,6 +45,9 @@ export interface Track {
   artist_id?: string | null
   duration_sec?: number
   cover_url?: string | null
+  big_cover_url?: string | null
+  cloudflare_cover_url?: string | null
+  cloudflare_big_cover_url?: string | null
   liked?: boolean
   spotify_url?: string | null
   /** Absolute stream URL if the server supplied one; otherwise built at play time */
@@ -77,7 +83,10 @@ export const TrackSchema = TrackCoreSchema.transform((data): Track => {
   const title = pick(data.title, audio.title) || 'Unknown Title'
   const artist = pick(data.artist, audio.artist, audio.performer, artists) || 'Unknown Artist'
   const album = pick(data.album, audio.album)
-  const cover_url = pick(data.cover_url, spotify.big_cover_url, spotify.cover_url) || null
+  const cloudflare_cover_url = pick(data.cloudflare_cover_url, spotify.cloudflare_cover_url) || null
+  const cloudflare_big_cover_url = pick(data.cloudflare_big_cover_url, spotify.cloudflare_big_cover_url) || null
+  const cover_url = pick(data.cloudflare_cover_url, data.cover_url, spotify.cloudflare_cover_url, spotify.cover_url, data.cloudflare_big_cover_url, spotify.cloudflare_big_cover_url, spotify.big_cover_url) || null
+  const big_cover_url = pick(data.cloudflare_big_cover_url, data.big_cover_url, spotify.cloudflare_big_cover_url, spotify.big_cover_url, cover_url) || null
   const stream_url = data.stream_url && /^https?:\/\//.test(data.stream_url) ? data.stream_url : null
   const titles = (data.titles || audio.titles || null) as Track['titles']
 
@@ -90,6 +99,9 @@ export const TrackSchema = TrackCoreSchema.transform((data): Track => {
     artist_id: data.artist_id || (audio.artist_id as string | undefined) || null,
     duration_sec: Number(data.duration_sec || audio.duration_sec || 0) || 0,
     cover_url,
+    big_cover_url,
+    cloudflare_cover_url,
+    cloudflare_big_cover_url,
     liked: Boolean(data.liked),
     spotify_url: data.spotify_url || (spotify.url as string | undefined) || null,
     stream_url,
