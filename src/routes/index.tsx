@@ -75,7 +75,7 @@ function HomePage() {
   const recaps = useQuery({ queryKey: ['recaps', 'available'], queryFn: ({ signal }) => fetchAvailableRecaps(signal), enabled: kind === 'user', staleTime: 5 * 60_000 })
   const featuredRecap = recaps.data?.find((r) => r.type === 'monthly' && !r.ongoing) ?? recaps.data?.find((r) => r.type === 'weekly' && !r.ongoing) ?? recaps.data?.[0]
   const tracks = browse.data?.items ?? []
-  const heroCover = tracks[0]?.cover_url ?? null
+  const heroCover = tracks[0]?.big_cover_url || tracks[0]?.cover_url || null
   const [heroColor, setHeroColor] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
@@ -191,7 +191,7 @@ function HomePage() {
             <Skeleton className="aspect-[4/3] w-full" />
           ) : hero ? (
             <div className="relative rounded-lg overflow-hidden bg-surface-low">
-              <Artwork src={hero.cover_url} alt={hero.title} priority className="w-full aspect-[4/3] rounded-none" />
+              <Artwork src={hero.big_cover_url || hero.cover_url} alt={hero.title} priority className="w-full aspect-[4/3] rounded-none" />
               <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/40 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-5 flex items-end justify-between gap-4">
                 <div className="min-w-0">
