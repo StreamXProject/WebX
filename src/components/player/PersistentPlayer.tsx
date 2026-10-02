@@ -119,7 +119,7 @@ export const PersistentPlayer: React.FC = () => {
           className="flex items-center gap-3 flex-1 min-w-0 text-left h-full"
           style={swipeDx ? { transform: `translateX(${swipeDx * 0.6}px)`, transition: 'none' } : { transition: 'transform 200ms var(--ease-emphasized)' }}
         >
-          <Artwork src={track.cover_url} alt="" className="size-12 rounded-sm shadow-md3-1" />
+          <Artwork src={track.cover_url || track.big_cover_url} alt="" className="size-12 rounded-sm shadow-md3-1" />
           <div className="min-w-0">
             <p className="type-body-md font-semibold text-on-surface truncate">{track.title}</p>
             <p className={cn('type-body-sm truncate', error ? 'text-error' : 'text-on-surface-variant')}>{error || track.artist}</p>
@@ -145,7 +145,7 @@ export const PersistentPlayer: React.FC = () => {
       <div className="hidden md:grid h-full grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] items-center gap-4 px-4 lg:px-6">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={() => openFullPlayer()} className="group relative size-14 shrink-0 rounded-sm overflow-hidden shadow-md3-1" aria-label="Open full player">
-            <Artwork src={track.cover_url} alt="" className="size-full rounded-none" />
+            <Artwork src={track.cover_url || track.big_cover_url} alt="" className="size-full rounded-none" />
             <span className="absolute inset-0 bg-scrim/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"><Maximize2 className="size-4" /></span>
           </button>
           <div className="min-w-0">

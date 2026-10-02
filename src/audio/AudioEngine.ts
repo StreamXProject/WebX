@@ -515,11 +515,12 @@ export class AudioEngine {
   private setupMediaSession(track: Track): void {
     try {
       if ('mediaSession' in navigator && typeof MediaMetadata !== 'undefined') {
+        const artUrl = track.big_cover_url || track.cover_url
         navigator.mediaSession.metadata = new MediaMetadata({
           title: track.title,
           artist: track.artist,
           album: track.album || 'WebX',
-          artwork: track.cover_url ? [{ src: track.cover_url, sizes: '512x512', type: 'image/jpeg' }] : [],
+          artwork: artUrl ? [{ src: artUrl, sizes: '1000x1000', type: 'image/webp' }] : [],
         })
       }
     } catch {}
