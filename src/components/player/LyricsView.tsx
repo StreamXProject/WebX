@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Mic2, ExternalLink, ChevronDown } from 'lucide-react'
+import { Mic2, ExternalLink, ChevronDown, Sparkles } from 'lucide-react'
 import { useLyrics } from '@/hooks/useLyrics'
 import { LyricsProviderDialog } from './LyricsProviderDialog'
 import { useProgressStore } from '@/stores/progressStore'
@@ -315,17 +315,47 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size
 
   if (isLoading) {
     return (
-      <div className={cn('flex flex-col gap-6 p-8 max-w-2xl mx-auto', className)}>
-        {[85, 65, 78, 55, 70, 60].map((w, i) => (
-          <Skeleton key={i} variant="text" className="h-8 rounded-xl" style={{ width: `${w}%` }} />
-        ))}
+      <div
+        className={cn(
+          'relative flex-1 flex flex-col items-center justify-center text-center px-6 py-12 text-on-surface-variant select-none animate-in fade-in duration-300',
+          className
+        )}
+      >
+        <div className="flex flex-col items-center max-w-sm mx-auto">
+          {/* Subtle animated indicator badge */}
+          <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-4 shadow-sm animate-pulse">
+            <Sparkles className="size-5" />
+          </div>
+
+          <p className="type-title-md text-on-surface font-semibold tracking-tight">
+            Fetching lyrics…
+          </p>
+          <p className="type-body-sm text-on-surface-variant/75 mt-1">
+            Searching across lyrics providers
+          </p>
+
+          {/* Lightweight line shimmer bars */}
+          <div className="w-full flex flex-col items-center gap-3 mt-8">
+            {[75, 90, 65, 80].map((width, i) => (
+              <div
+                key={i}
+                className="h-3.5 rounded-full skeleton"
+                style={{
+                  width: `${width}%`,
+                  maxWidth: `${width * 3.5}px`,
+                  opacity: 1 - i * 0.18,
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (isError || !data || (!data.synced && !data.plain)) {
     return (
-      <div className={cn('relative flex-1 flex flex-col items-center justify-center text-center p-8 text-on-surface-variant', className)}>
+      <div className={cn('relative flex-1 flex flex-col items-center justify-center text-center p-8 text-on-surface-variant animate-in fade-in duration-300', className)}>
         <div className="absolute top-4 right-6 z-20">
           <button
             type="button"
@@ -365,7 +395,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size
 
   if (!data.synced) {
     return (
-      <div ref={containerRef} className={cn('relative flex-1 overflow-y-auto px-6 sm:px-10 py-8', className)}>
+      <div ref={containerRef} className={cn('relative flex-1 overflow-y-auto px-6 sm:px-10 py-8 animate-in fade-in duration-300', className)}>
         <div className="absolute top-4 right-6 z-20">
           <button
             type="button"
@@ -399,7 +429,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size
   }
 
   return (
-    <div className={cn('relative flex-1 flex flex-col min-h-0 overflow-hidden', className)}>
+    <div className={cn('relative flex-1 flex flex-col min-h-0 overflow-hidden animate-in fade-in duration-300', className)}>
       <div className="absolute top-4 right-6 z-20">
         <button
           type="button"

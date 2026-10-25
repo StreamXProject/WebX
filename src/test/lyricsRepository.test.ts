@@ -4,6 +4,7 @@ import type { TrackMetadata } from '@/lyrics/types'
 import * as lrcRedMod from '@/lyrics/providers/lrcRedProvider'
 import * as lrcLibMod from '@/lyrics/providers/lrcLibProvider'
 import * as biniMod from '@/lyrics/providers/biniLyricsProvider'
+import * as backendMod from '@/lyrics/providers/backendProvider'
 
 describe('LyricsRepository', () => {
   const dummyTrack: TrackMetadata = {
@@ -75,6 +76,40 @@ describe('LyricsRepository', () => {
     const second = await LyricsRepository.fetchLyrics(dummyTrack)
     expect(second).toBe(first)
     expect(spyLrcLib).toHaveBeenCalledTimes(1) // Still 1!
+  })
+
+  it('does not default to streamx even if streamx has word-synced lyrics', async () => {
+    vi.spyOn(biniMod, 'identifyBini').mockResolvedValue(null)
+    vi.spyOn(lrcRedMod, 'fetchLrcRed').mockResolvedValue(null)
+    // Client provider returns line-synced lyrics
+    vi.spyOn(lrcLibMod, 'fetchLrcLib').mockResolvedValue([
+      { time: 2.0, text: 'Client line synced lyrics' },
+    ])
+    // Backend StreamX returns syllable-synced lyrics
+    vi.spyOn(backendMod, 'fetchBackendLyrics').mockResolvedValue([
+      {
+        time: 2.0,
+        text: 'Backend word synced lyrics',
+        spans: [{ time: 2.0, duration: 1.0, text: 'Backend' }],
+      },
+    ])
+
+    const lyrics = await LyricsRepository.fetchLyrics(dummyTrack)
+    // Should NOT default to streamx; should pick client provider lrclib
+    expect(lyrics).toBeDefined()
+    expect(lyrics?.source).toBe('lrclib')
+    expect(lyrics?.kind).toBe('line')
+
+    // streamx should still be tracked as available in status
+    const statuses = LyricsRepository.getProviderStatuses('track-123')
+    expect(statuses['streamx']).toBe(true)
+    expect(statuses['lrclib']).toBe(true)
+
+    // And manual selection of streamx should work
+    const streamxLyrics = await LyricsRepository.selectProvider(dummyTrack, 'streamx')
+    expect(streamxLyrics).toBeDefined()
+    expect(streamxLyrics?.source).toBe('streamx')
+    expect(streamxLyrics?.kind).toBe('syllable')
   })
 })
 

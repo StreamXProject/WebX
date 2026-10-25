@@ -300,7 +300,7 @@ export const LyricsRepository = {
         return null
       })
 
-    // Priority ordering
+    // Priority ordering for automatic race: client providers ONLY (never default to streamx)
     const jobsInPriority: Array<{ source: LyricsSource; promise: Promise<ProviderResult | null> }> = [
       { source: 'lrc.red', promise: lrcRedPromise },
       { source: 'binilyrics', promise: biniPromise },
@@ -309,7 +309,6 @@ export const LyricsRepository = {
       { source: 'lrclib', promise: lrcLibPromise },
       { source: 'kugou', promise: kuGouPromise },
       { source: 'ytmusic', promise: ytMusicPromise },
-      { source: 'streamx', promise: backendPromise },
     ]
 
     let bestLineSynced: ProviderResult | null = null
