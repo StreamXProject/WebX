@@ -105,27 +105,33 @@ const ActiveLineRenderer: React.FC<{
               )
             }
 
-            // Word is active: smooth progressive horizontal gradient flow across the complex script glyphs
-            const p1 = Math.max(0, Math.min(100, Math.round((wProg - 0.08) * 100)))
-            const p2 = Math.max(0, Math.min(100, Math.round((wProg + 0.08) * 100)))
+            // Word is active: base layer remains intact while clipped overlay reveals only the current sung part
+            const pct = Math.max(0, Math.min(100, wProg * 100))
 
             return (
               <span
                 key={wIdx}
-                className="font-semibold mr-[0.3em] last:mr-0 inline-block select-none"
-                style={{
-                  backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  textShadow:
-                    glow
-                      ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
-                      : undefined,
-                }}
+                className="relative inline-block font-semibold mr-[0.3em] last:mr-0 select-none align-baseline"
               >
-                {w.text}
+                {/* Inactive base layer (dim) - keeps font ligatures intact */}
+                <span className="text-on-surface opacity-35 block">
+                  {w.text}
+                </span>
+
+                {/* Active highlighted overlay - clipped to progress so only sung part is highlighted */}
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
+                  style={{
+                    width: `${pct}%`,
+                    textShadow:
+                      glow
+                        ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
+                        : undefined,
+                  }}
+                >
+                  {w.text}
+                </span>
               </span>
             )
           }
@@ -253,28 +259,33 @@ const ActiveLineRenderer: React.FC<{
           const isComplex = isComplexScript(w.text)
 
           if (isComplex && isWordActive) {
-            const p1 = Math.max(0, Math.min(100, Math.round((linear - 0.08) * 100)))
-            const p2 = Math.max(0, Math.min(100, Math.round((linear + 0.08) * 100)))
+            const pct = Math.max(0, Math.min(100, linear * 100))
 
             return (
               <span
                 key={wIdx}
-                className="font-bold inline-block mr-[0.3em] last:mr-0 origin-bottom select-none"
+                className="relative inline-block font-bold mr-[0.3em] last:mr-0 origin-bottom select-none align-baseline"
                 style={{
-                  backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
                   transform: `translateY(${translateY}px) scale(${scale})`,
                   willChange: 'transform',
-                  textShadow:
-                    glow
-                      ? '0 0 16px var(--color-primary), 0 0 28px var(--color-primary-container)'
-                      : undefined,
                 }}
               >
-                {w.text}
+                <span className="text-on-surface opacity-35 block">
+                  {w.text}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
+                  style={{
+                    width: `${pct}%`,
+                    textShadow:
+                      glow
+                        ? '0 0 16px var(--color-primary), 0 0 28px var(--color-primary-container)'
+                        : undefined,
+                  }}
+                >
+                  {w.text}
+                </span>
               </span>
             )
           }

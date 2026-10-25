@@ -187,25 +187,28 @@ function LyricsPreviewCard() {
                         )
                       }
 
-                      const p1 = Math.max(0, Math.min(100, Math.round((wordProg - 0.08) * 100)))
-                      const p2 = Math.max(0, Math.min(100, Math.round((wordProg + 0.08) * 100)))
+                      const pct = Math.max(0, Math.min(100, wordProg * 100))
 
                       return (
                         <span
                           key={wIdx}
-                          className="mr-[0.3em] last:mr-0 inline-block select-none"
-                          style={{
-                            backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
-                            WebkitBackgroundClip: 'text',
-                            backgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            color: 'transparent',
-                            textShadow: glow
-                              ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
-                              : undefined,
-                          }}
+                          className="relative inline-block mr-[0.3em] last:mr-0 select-none align-baseline"
                         >
-                          {word}
+                          <span className="text-on-surface opacity-35 block">
+                            {word}
+                          </span>
+                          <span
+                            aria-hidden="true"
+                            className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
+                            style={{
+                              width: `${pct}%`,
+                              textShadow: glow
+                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
+                                : undefined,
+                            }}
+                          >
+                            {word}
+                          </span>
                         </span>
                       )
                     }
