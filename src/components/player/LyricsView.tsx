@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Mic2, ExternalLink } from 'lucide-react'
-import { useTrackLyrics } from '@/hooks/useQueries'
+import { Mic2, ExternalLink, ChevronDown } from 'lucide-react'
+import { useLyrics } from '@/hooks/useLyrics'
+import { LyricsProviderDialog } from './LyricsProviderDialog'
 import { useProgressStore } from '@/stores/progressStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -69,37 +70,11 @@ const ActiveLineRenderer: React.FC<{
       >
         {words.map((w, wIdx) => {
           const wDur = w.duration || 0.35
-          const isComplex = isComplexScript(w.text)
-
-          if (isComplex) {
-            const isPassed = time >= w.time + wDur
-            const isWordActive = time >= w.time && time < w.time + wDur
-            const wProg = Math.max(0, Math.min(1, (time - w.time) / wDur))
-            const alpha = isPassed ? 1 : isWordActive ? Math.max(0.35, 0.35 + 0.65 * wProg) : 0.35
-
-            return (
-              <span
-                key={wIdx}
-                className="font-semibold mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
-                style={{
-                  opacity: alpha,
-                  color: isPassed || isWordActive ? 'var(--color-primary)' : 'var(--color-on-surface)',
-                  textShadow:
-                    glow && (isPassed || isWordActive)
-                      ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
-                      : undefined,
-                }}
-              >
-                {w.text}
-              </span>
-            )
-          }
-
           const chars = splitGraphemes(w.text)
           const charDur = chars.length > 0 ? wDur / chars.length : 0.05
 
           return (
-            <span key={wIdx} className="inline-flex mr-[0.3em] last:mr-0">
+            <span key={wIdx} className="inline-block mr-[0.3em] last:mr-0 whitespace-nowrap">
               {chars.map((ch, cIdx) => {
                 const cStart = w.time + cIdx * charDur
                 const cEnd = cStart + charDur
@@ -113,13 +88,13 @@ const ActiveLineRenderer: React.FC<{
                     key={cIdx}
                     style={{
                       opacity: alpha,
-                      color: isPassed ? 'var(--color-primary)' : isActiveChar ? 'var(--color-primary)' : 'var(--color-on-surface)',
+                      color: isPassed || isActiveChar ? 'var(--color-primary)' : 'var(--color-on-surface)',
                       textShadow:
                         glow && (isPassed || isActiveChar)
                           ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
                           : undefined,
                     }}
-                    className="transition-colors duration-75"
+                    className="transition-colors duration-75 inline"
                   >
                     {ch}
                   </span>
@@ -269,7 +244,8 @@ interface LyricsViewProps {
 
 export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size: propSize }) => {
   const settings = useSettingsStore()
-  const { data, isLoading, isError } = useTrackLyrics(trackId, settings.lyricsProvider)
+  const { lyrics: data, isLoading, isError, currentSource, providerStatuses, selectProvider } = useLyrics(trackId)
+  const [showProviderDialog, setShowProviderDialog] = useState(false)
   const lines = useMemo(() => data?.lines ?? [], [data])
   const active = useActiveLine(lines, settings.lyricsSyncOffsetMs)
 
@@ -349,20 +325,59 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size
 
   if (isError || !data || (!data.synced && !data.plain)) {
     return (
-      <div className={cn('flex-1 flex flex-col items-center justify-center text-center p-8 text-on-surface-variant', className)}>
+      <div className={cn('relative flex-1 flex flex-col items-center justify-center text-center p-8 text-on-surface-variant', className)}>
+        <div className="absolute top-4 right-6 z-20">
+          <button
+            type="button"
+            onClick={() => setShowProviderDialog(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E1C24]/85 hover:bg-[#282632] border border-outline-variant/20 backdrop-blur-md text-primary type-label-sm font-medium transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <span>{currentSource || 'Provider'}</span>
+            <ChevronDown className="size-3.5 opacity-80" />
+          </button>
+        </div>
+
         <Mic2 className="size-10 mb-3 opacity-50" />
         <p className="type-title-md text-on-surface font-semibold">No lyrics available</p>
         <p className="type-body-sm mt-1 text-on-surface-variant/80 max-w-sm">
-          Lyrics could not be found via {settings.lyricsProvider === 'musixmatch' ? 'Musixmatch' : settings.lyricsProvider === 'lrclib' ? 'LRCLIB' : 'Musixmatch or LRCLIB'}.
+          Lyrics could not be found via available providers.
         </p>
+
+        <button
+          type="button"
+          onClick={() => setShowProviderDialog(true)}
+          className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary type-label-md font-semibold transition-all cursor-pointer"
+        >
+          <span>Switch Provider</span>
+          <ChevronDown className="size-3.5" />
+        </button>
+
+        <LyricsProviderDialog
+          isOpen={showProviderDialog}
+          currentSource={currentSource}
+          providerStatuses={providerStatuses}
+          onSelectProvider={selectProvider}
+          onClose={() => setShowProviderDialog(false)}
+        />
       </div>
     )
   }
 
   if (!data.synced) {
     return (
-      <div ref={containerRef} className={cn('flex-1 overflow-y-auto px-6 sm:px-10 py-8', className)}>
-        <p className={cn('whitespace-pre-wrap text-on-surface leading-relaxed font-semibold', fontSizeClass, textAlignClass)}>
+      <div ref={containerRef} className={cn('relative flex-1 overflow-y-auto px-6 sm:px-10 py-8', className)}>
+        <div className="absolute top-4 right-6 z-20">
+          <button
+            type="button"
+            onClick={() => setShowProviderDialog(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E1C24]/85 hover:bg-[#282632] border border-outline-variant/20 backdrop-blur-md text-primary type-label-sm font-medium transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <span>{currentSource || 'Provider'}</span>
+            <ChevronDown className="size-3.5 opacity-80" />
+          </button>
+        </div>
+
+        <p className={cn('whitespace-pre-wrap text-on-surface leading-relaxed font-semibold mt-8', fontSizeClass, textAlignClass)}>
           {data.plain}
         </p>
         {data.source && (
@@ -371,70 +386,95 @@ export const LyricsView: React.FC<LyricsViewProps> = ({ trackId, className, size
             <span>Source: {data.source}</span>
           </div>
         )}
+
+        <LyricsProviderDialog
+          isOpen={showProviderDialog}
+          currentSource={currentSource}
+          providerStatuses={providerStatuses}
+          onSelectProvider={selectProvider}
+          onClose={() => setShowProviderDialog(false)}
+        />
       </div>
     )
   }
 
   return (
-    <div
-      ref={containerRef}
-      onWheel={onScroll}
-      onTouchMove={onScroll}
-      className={cn(
-        'flex-1 overflow-y-auto px-6 sm:px-12 py-[40%] scrollbar-none [mask-image:linear-gradient(to_bottom,transparent,#000_10%,#000_88%,transparent)]',
-        className
-      )}
-    >
-      <div className={cn('flex flex-col select-none transition-all duration-300 w-full', alignClass)} style={{ gap: `${(spacing - 0.4) * 1.5}rem` }}>
-        {lines.map((line, i) => {
-          const isActive = i === active
-          const isPast = i < active
-
-          return (
-            <button
-              key={i}
-              data-line={i}
-              disabled={!seekOnClick}
-              onClick={() => {
-                if (seekOnClick) audioEngine.seek(line.time)
-              }}
-              style={{
-                lineHeight: spacing,
-              }}
-              className={cn(
-                'w-full max-w-full rounded-2xl transition-[transform,opacity,filter] duration-300 block py-1.5 px-3 outline-none',
-                textAlignClass,
-                originClass,
-                fontSizeClass,
-                seekOnClick ? 'cursor-pointer hover:opacity-90' : 'cursor-default',
-                isActive
-                  ? 'opacity-100 scale-[1.03] z-10'
-                  : cn(
-                    isPast ? 'opacity-35 hover:opacity-75' : 'opacity-45 hover:opacity-85',
-                    blur && 'blur-[1.5px]'
-                  )
-              )}
-            >
-              {isActive ? (
-                <div className={cn('w-full flex', justifyClass, textAlignClass)}>
-                  <ActiveLineRenderer
-                    line={line}
-                    syncOffsetMs={settings.lyricsSyncOffsetMs}
-                    glow={glow}
-                    style={animStyle}
-                    position={position}
-                  />
-                </div>
-              ) : (
-                <span className={cn('block font-semibold text-on-surface-variant transition-colors duration-200', textAlignClass)}>
-                  {line.text || '♪'}
-                </span>
-              )}
-            </button>
-          )
-        })}
-
+    <div className={cn('relative flex-1 flex flex-col min-h-0 overflow-hidden', className)}>
+      <div className="absolute top-4 right-6 z-20">
+        <button
+          type="button"
+          onClick={() => setShowProviderDialog(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E1C24]/85 hover:bg-[#282632] border border-outline-variant/20 backdrop-blur-md text-primary type-label-sm font-medium transition-all shadow-md active:scale-95 cursor-pointer"
+        >
+          <span>{currentSource || 'Provider'}</span>
+          <ChevronDown className="size-3.5 opacity-80" />
+        </button>
       </div>
+
+      <div
+        ref={containerRef}
+        onWheel={onScroll}
+        onTouchMove={onScroll}
+        className="flex-1 overflow-y-auto px-6 sm:px-12 py-[40%] scrollbar-none [mask-image:linear-gradient(to_bottom,transparent,#000_10%,#000_88%,transparent)]"
+      >
+        <div className={cn('flex flex-col select-none transition-all duration-300 w-full', alignClass)} style={{ gap: `${(spacing - 0.4) * 1.5}rem` }}>
+          {lines.map((line, i) => {
+            const isActive = i === active
+            const isPast = i < active
+
+            return (
+              <button
+                key={i}
+                data-line={i}
+                disabled={!seekOnClick}
+                onClick={() => {
+                  if (seekOnClick) audioEngine.seek(line.time)
+                }}
+                style={{
+                  lineHeight: spacing,
+                }}
+                className={cn(
+                  'w-full max-w-full rounded-2xl transition-[transform,opacity,filter] duration-300 block py-1.5 px-3 outline-none',
+                  textAlignClass,
+                  originClass,
+                  fontSizeClass,
+                  seekOnClick ? 'cursor-pointer hover:opacity-90' : 'cursor-default',
+                  isActive
+                    ? 'opacity-100 scale-[1.03] z-10'
+                    : cn(
+                      isPast ? 'opacity-35 hover:opacity-75' : 'opacity-45 hover:opacity-85',
+                      blur && 'blur-[1.5px]'
+                    )
+                )}
+              >
+                {isActive ? (
+                  <div className={cn('w-full flex', justifyClass, textAlignClass)}>
+                    <ActiveLineRenderer
+                      line={line}
+                      syncOffsetMs={settings.lyricsSyncOffsetMs}
+                      glow={glow}
+                      style={animStyle}
+                      position={position}
+                    />
+                  </div>
+                ) : (
+                  <span className={cn('block font-semibold text-on-surface-variant transition-colors duration-200', textAlignClass)}>
+                    {line.text || '♪'}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <LyricsProviderDialog
+        isOpen={showProviderDialog}
+        currentSource={currentSource}
+        providerStatuses={providerStatuses}
+        onSelectProvider={selectProvider}
+        onClose={() => setShowProviderDialog(false)}
+      />
     </div>
   )
 }

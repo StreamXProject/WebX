@@ -148,36 +148,8 @@ function LyricsPreviewCard() {
                   )}
                 >
                   {words.map((word, wIdx) => {
-                    const isComplex = isComplexScript(word)
                     const wordChars = splitGraphemes(word)
                     const wordCharsCount = wordChars.length
-
-                    if (isComplex) {
-                      const wordStart = charAcc / totalChars
-                      const wordEnd = (charAcc + wordCharsCount) / totalChars
-                      const wordProg = Math.max(0, Math.min(1, (lineProgress - wordStart) / (wordEnd - wordStart)))
-                      const isPassed = lineProgress >= wordEnd
-                      const isWordActive = lineProgress >= wordStart && lineProgress < wordEnd
-                      const alpha = isPassed ? 1 : isWordActive ? Math.max(0.35, 0.35 + 0.65 * wordProg) : 0.35
-                      charAcc += wordCharsCount + 1
-
-                      return (
-                        <span
-                          key={wIdx}
-                          className="mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
-                          style={{
-                            opacity: alpha,
-                            color: isPassed || isWordActive ? 'var(--color-primary)' : 'var(--color-on-surface)',
-                            textShadow:
-                              glow && (isPassed || isWordActive)
-                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
-                                : undefined,
-                          }}
-                        >
-                          {word}
-                        </span>
-                      )
-                    }
 
                     const wordSpan = (
                       <span key={wIdx} className="inline-flex mr-[0.3em] last:mr-0">
@@ -369,11 +341,14 @@ function LyricsPreviewCard() {
 }
 
 const PROVIDERS: Array<{ id: LyricsProvider; name: string; desc: string; icon: React.FC<{ className?: string }> }> = [
-  { id: 'auto', name: 'Auto', desc: 'Best available · recommended', icon: Sparkles },
-  { id: 'betterlyrics', name: 'BetterLyrics', desc: 'Apple Music TTML, syllable timing', icon: Music },
-  { id: 'musixmatch', name: 'Musixmatch', desc: 'Word-level RichSync', icon: Mic2 },
-  { id: 'lrclib', name: 'LRCLIB', desc: 'Community synced LRC', icon: FileText },
+  { id: 'auto', name: 'Auto (Dynamic Race)', desc: 'Parallel multi-provider race · Syllable prioritized', icon: Sparkles },
+  { id: 'lrc.red', name: 'lrc.red', desc: 'Apple Music TTML with syllable timing via ISRC', icon: Sparkles },
+  { id: 'binilyrics', name: 'BiniLyrics', desc: 'Apple Music TTML with recording identification', icon: Music },
+  { id: 'betterlyrics', name: 'BetterLyrics', desc: 'Apple Music TTML, syllable timing (Boidu)', icon: Music },
+  { id: 'lrclib', name: 'LRCLIB', desc: 'Free community synced LRC', icon: FileText },
   { id: 'kugou', name: 'KuGou', desc: 'Asian and international catalog', icon: AudioLines },
+  { id: 'ytmusic', name: 'YouTube Music', desc: 'Official YouTube Music lyrics', icon: Mic2 },
+  { id: 'streamx', name: 'StreamX Backend', desc: 'StreamX server backend lyrics', icon: AudioLines },
 ]
 
 const STYLES: Array<{ id: LyricsAnimationStyle; name: string; desc: string; icon: React.FC<{ className?: string }> }> = [
