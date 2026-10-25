@@ -39,3 +39,4 @@ describe('LyricsQuery engine', () => {
     expect(splitArtists(feat)).toEqual(['Taylor Swift', 'Post Malone'])
   })
 })
+

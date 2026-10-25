@@ -70,3 +70,4 @@ describe('TTML parser', () => {
     expect(lines[0].duration).toBeCloseTo(3.5)
   })
 })
+

@@ -43,3 +43,4 @@ export interface TrackMetadata {
 }
 
 export type ProviderStatusMap = Partial<Record<LyricsSource, boolean>>
+

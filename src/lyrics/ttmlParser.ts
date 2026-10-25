@@ -278,3 +278,4 @@ export function parseTtml(ttml: string): LyricLine[] {
 
   return lines
 }
+

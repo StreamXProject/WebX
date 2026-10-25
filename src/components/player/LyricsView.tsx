@@ -76,17 +76,51 @@ const ActiveLineRenderer: React.FC<{
             const isPassed = time >= w.time + wDur
             const isWordActive = time >= w.time && time < w.time + wDur
             const wProg = Math.max(0, Math.min(1, (time - w.time) / wDur))
-            const alpha = isPassed ? 1 : isWordActive ? Math.max(0.35, 0.35 + 0.65 * wProg) : 0.35
+
+            if (isPassed) {
+              return (
+                <span
+                  key={wIdx}
+                  className="font-semibold text-primary mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
+                  style={{
+                    textShadow:
+                      glow
+                        ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
+                        : undefined,
+                  }}
+                >
+                  {w.text}
+                </span>
+              )
+            }
+
+            if (!isWordActive) {
+              return (
+                <span
+                  key={wIdx}
+                  className="font-semibold text-on-surface opacity-35 mr-[0.3em] last:mr-0 inline-block select-none"
+                >
+                  {w.text}
+                </span>
+              )
+            }
+
+            // Word is active: smooth progressive horizontal gradient flow across the complex script glyphs
+            const p1 = Math.max(0, Math.min(100, Math.round((wProg - 0.08) * 100)))
+            const p2 = Math.max(0, Math.min(100, Math.round((wProg + 0.08) * 100)))
 
             return (
               <span
                 key={wIdx}
-                className="font-semibold mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
+                className="font-semibold mr-[0.3em] last:mr-0 inline-block select-none"
                 style={{
-                  opacity: alpha,
-                  color: isPassed || isWordActive ? 'var(--color-primary)' : 'var(--color-on-surface)',
+                  backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
                   textShadow:
-                    glow && (isPassed || isWordActive)
+                    glow
                       ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
                       : undefined,
                 }}
@@ -215,6 +249,35 @@ const ActiveLineRenderer: React.FC<{
           const bump = isWordActive ? Math.sin(linear * Math.PI) : 0
           const scale = isWordActive ? 1.0 + bump * 0.08 : 1.0
           const translateY = isWordActive ? -bump * 2.5 : 0
+
+          const isComplex = isComplexScript(w.text)
+
+          if (isComplex && isWordActive) {
+            const p1 = Math.max(0, Math.min(100, Math.round((linear - 0.08) * 100)))
+            const p2 = Math.max(0, Math.min(100, Math.round((linear + 0.08) * 100)))
+
+            return (
+              <span
+                key={wIdx}
+                className="font-bold inline-block mr-[0.3em] last:mr-0 origin-bottom select-none"
+                style={{
+                  backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  color: 'transparent',
+                  transform: `translateY(${translateY}px) scale(${scale})`,
+                  willChange: 'transform',
+                  textShadow:
+                    glow
+                      ? '0 0 16px var(--color-primary), 0 0 28px var(--color-primary-container)'
+                      : undefined,
+                }}
+              >
+                {w.text}
+              </span>
+            )
+          }
 
           return (
             <span

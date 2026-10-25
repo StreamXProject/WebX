@@ -22,3 +22,4 @@ export async function fetchBackendLyrics(
 
   return null
 }
+

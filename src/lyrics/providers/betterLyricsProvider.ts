@@ -43,3 +43,4 @@ export async function fetchBetterLyrics(
   const lines = parseLrc(payload)
   return lines.length > 0 ? lines : null
 }
+

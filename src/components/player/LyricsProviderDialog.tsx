@@ -128,3 +128,4 @@ export const LyricsProviderDialog: React.FC<LyricsProviderDialogProps> = ({
     </div>
   )
 }
+

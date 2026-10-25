@@ -77,3 +77,4 @@ describe('LyricsRepository', () => {
     expect(spyLrcLib).toHaveBeenCalledTimes(1) // Still 1!
   })
 })
+

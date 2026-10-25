@@ -158,20 +158,51 @@ function LyricsPreviewCard() {
                       const wordProg = Math.max(0, Math.min(1, (lineProgress - wordStart) / (wordEnd - wordStart)))
                       const isPassed = lineProgress >= wordEnd
                       const isWordActive = lineProgress >= wordStart && lineProgress < wordEnd
-                      const alpha = isPassed ? 1 : isWordActive ? Math.max(0.35, 0.35 + 0.65 * wordProg) : 0.35
                       charAcc += wordCharsCount + 1
+
+                      if (isPassed) {
+                        return (
+                          <span
+                            key={wIdx}
+                            className="text-primary mr-[0.3em] last:mr-0 inline-block"
+                            style={{
+                              textShadow: glow
+                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
+                                : undefined,
+                            }}
+                          >
+                            {word}
+                          </span>
+                        )
+                      }
+
+                      if (!isWordActive) {
+                        return (
+                          <span
+                            key={wIdx}
+                            className="text-on-surface opacity-35 mr-[0.3em] last:mr-0 inline-block select-none"
+                          >
+                            {word}
+                          </span>
+                        )
+                      }
+
+                      const p1 = Math.max(0, Math.min(100, Math.round((wordProg - 0.08) * 100)))
+                      const p2 = Math.max(0, Math.min(100, Math.round((wordProg + 0.08) * 100)))
 
                       return (
                         <span
                           key={wIdx}
-                          className="mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
+                          className="mr-[0.3em] last:mr-0 inline-block select-none"
                           style={{
-                            opacity: alpha,
-                            color: isPassed || isWordActive ? 'var(--color-primary)' : 'var(--color-on-surface)',
-                            textShadow:
-                              glow && (isPassed || isWordActive)
-                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
-                                : undefined,
+                            backgroundImage: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${p1}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) ${p2}%, color-mix(in srgb, var(--color-on-surface) 35%, transparent) 100%)`,
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            color: 'transparent',
+                            textShadow: glow
+                              ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
+                              : undefined,
                           }}
                         >
                           {word}

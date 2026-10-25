@@ -105,3 +105,4 @@ export async function fetchLrcLib(
   const lines = parseLrc(lrc)
   return lines.length > 0 ? lines : null
 }
+
