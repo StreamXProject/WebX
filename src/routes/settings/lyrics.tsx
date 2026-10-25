@@ -148,70 +148,8 @@ function LyricsPreviewCard() {
                   )}
                 >
                   {words.map((word, wIdx) => {
-                    const isComplex = isComplexScript(word)
                     const wordChars = splitGraphemes(word)
                     const wordCharsCount = wordChars.length
-
-                    if (isComplex) {
-                      const wordStart = charAcc / totalChars
-                      const wordEnd = (charAcc + wordCharsCount) / totalChars
-                      const wordProg = Math.max(0, Math.min(1, (lineProgress - wordStart) / (wordEnd - wordStart)))
-                      const isPassed = lineProgress >= wordEnd
-                      const isWordActive = lineProgress >= wordStart && lineProgress < wordEnd
-                      charAcc += wordCharsCount + 1
-
-                      if (isPassed) {
-                        return (
-                          <span
-                            key={wIdx}
-                            className="text-primary mr-[0.3em] last:mr-0 inline-block"
-                            style={{
-                              textShadow: glow
-                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
-                                : undefined,
-                            }}
-                          >
-                            {word}
-                          </span>
-                        )
-                      }
-
-                      if (!isWordActive) {
-                        return (
-                          <span
-                            key={wIdx}
-                            className="text-on-surface opacity-35 mr-[0.3em] last:mr-0 inline-block select-none"
-                          >
-                            {word}
-                          </span>
-                        )
-                      }
-
-                      const pct = Math.max(0, Math.min(100, wordProg * 100))
-
-                      return (
-                        <span
-                          key={wIdx}
-                          className="relative inline-block mr-[0.3em] last:mr-0 select-none align-baseline"
-                        >
-                          <span className="text-on-surface opacity-35 block">
-                            {word}
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
-                            style={{
-                              width: `${pct}%`,
-                              textShadow: glow
-                                ? '0 0 16px var(--color-primary), 0 0 30px var(--color-primary-container)'
-                                : undefined,
-                            }}
-                          >
-                            {word}
-                          </span>
-                        </span>
-                      )
-                    }
 
                     const wordSpan = (
                       <span key={wIdx} className="inline-flex mr-[0.3em] last:mr-0">

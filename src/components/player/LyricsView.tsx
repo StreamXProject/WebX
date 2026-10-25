@@ -70,77 +70,11 @@ const ActiveLineRenderer: React.FC<{
       >
         {words.map((w, wIdx) => {
           const wDur = w.duration || 0.35
-          const isComplex = isComplexScript(w.text)
-
-          if (isComplex) {
-            const isPassed = time >= w.time + wDur
-            const isWordActive = time >= w.time && time < w.time + wDur
-            const wProg = Math.max(0, Math.min(1, (time - w.time) / wDur))
-
-            if (isPassed) {
-              return (
-                <span
-                  key={wIdx}
-                  className="font-semibold text-primary mr-[0.3em] last:mr-0 inline-block transition-colors duration-75"
-                  style={{
-                    textShadow:
-                      glow
-                        ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
-                        : undefined,
-                  }}
-                >
-                  {w.text}
-                </span>
-              )
-            }
-
-            if (!isWordActive) {
-              return (
-                <span
-                  key={wIdx}
-                  className="font-semibold text-on-surface opacity-35 mr-[0.3em] last:mr-0 inline-block select-none"
-                >
-                  {w.text}
-                </span>
-              )
-            }
-
-            // Word is active: base layer remains intact while clipped overlay reveals only the current sung part
-            const pct = Math.max(0, Math.min(100, wProg * 100))
-
-            return (
-              <span
-                key={wIdx}
-                className="relative inline-block font-semibold mr-[0.3em] last:mr-0 select-none align-baseline"
-              >
-                {/* Inactive base layer (dim) - keeps font ligatures intact */}
-                <span className="text-on-surface opacity-35 block">
-                  {w.text}
-                </span>
-
-                {/* Active highlighted overlay - clipped to progress so only sung part is highlighted */}
-                <span
-                  aria-hidden="true"
-                  className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
-                  style={{
-                    width: `${pct}%`,
-                    textShadow:
-                      glow
-                        ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
-                        : undefined,
-                  }}
-                >
-                  {w.text}
-                </span>
-              </span>
-            )
-          }
-
           const chars = splitGraphemes(w.text)
           const charDur = chars.length > 0 ? wDur / chars.length : 0.05
 
           return (
-            <span key={wIdx} className="inline-flex mr-[0.3em] last:mr-0">
+            <span key={wIdx} className="inline-block mr-[0.3em] last:mr-0 whitespace-nowrap">
               {chars.map((ch, cIdx) => {
                 const cStart = w.time + cIdx * charDur
                 const cEnd = cStart + charDur
@@ -154,13 +88,13 @@ const ActiveLineRenderer: React.FC<{
                     key={cIdx}
                     style={{
                       opacity: alpha,
-                      color: isPassed ? 'var(--color-primary)' : isActiveChar ? 'var(--color-primary)' : 'var(--color-on-surface)',
+                      color: isPassed || isActiveChar ? 'var(--color-primary)' : 'var(--color-on-surface)',
                       textShadow:
                         glow && (isPassed || isActiveChar)
                           ? '0 0 16px var(--color-primary), 0 0 32px var(--color-primary-container)'
                           : undefined,
                     }}
-                    className="transition-colors duration-75"
+                    className="transition-colors duration-75 inline"
                   >
                     {ch}
                   </span>
@@ -255,40 +189,6 @@ const ActiveLineRenderer: React.FC<{
           const bump = isWordActive ? Math.sin(linear * Math.PI) : 0
           const scale = isWordActive ? 1.0 + bump * 0.08 : 1.0
           const translateY = isWordActive ? -bump * 2.5 : 0
-
-          const isComplex = isComplexScript(w.text)
-
-          if (isComplex && isWordActive) {
-            const pct = Math.max(0, Math.min(100, linear * 100))
-
-            return (
-              <span
-                key={wIdx}
-                className="relative inline-block font-bold mr-[0.3em] last:mr-0 origin-bottom select-none align-baseline"
-                style={{
-                  transform: `translateY(${translateY}px) scale(${scale})`,
-                  willChange: 'transform',
-                }}
-              >
-                <span className="text-on-surface opacity-35 block">
-                  {w.text}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="absolute top-0 left-0 h-full overflow-hidden whitespace-nowrap text-primary select-none pointer-events-none"
-                  style={{
-                    width: `${pct}%`,
-                    textShadow:
-                      glow
-                        ? '0 0 16px var(--color-primary), 0 0 28px var(--color-primary-container)'
-                        : undefined,
-                  }}
-                >
-                  {w.text}
-                </span>
-              </span>
-            )
-          }
 
           return (
             <span
