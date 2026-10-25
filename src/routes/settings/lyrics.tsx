@@ -369,11 +369,14 @@ function LyricsPreviewCard() {
 }
 
 const PROVIDERS: Array<{ id: LyricsProvider; name: string; desc: string; icon: React.FC<{ className?: string }> }> = [
-  { id: 'auto', name: 'Auto', desc: 'Best available · recommended', icon: Sparkles },
-  { id: 'betterlyrics', name: 'BetterLyrics', desc: 'Apple Music TTML, syllable timing', icon: Music },
-  { id: 'musixmatch', name: 'Musixmatch', desc: 'Word-level RichSync', icon: Mic2 },
-  { id: 'lrclib', name: 'LRCLIB', desc: 'Community synced LRC', icon: FileText },
+  { id: 'auto', name: 'Auto (Dynamic Race)', desc: 'Parallel multi-provider race · Syllable prioritized', icon: Sparkles },
+  { id: 'lrc.red', name: 'lrc.red', desc: 'Apple Music TTML with syllable timing via ISRC', icon: Sparkles },
+  { id: 'binilyrics', name: 'BiniLyrics', desc: 'Apple Music TTML with recording identification', icon: Music },
+  { id: 'betterlyrics', name: 'BetterLyrics', desc: 'Apple Music TTML, syllable timing (Boidu)', icon: Music },
+  { id: 'lrclib', name: 'LRCLIB', desc: 'Free community synced LRC', icon: FileText },
   { id: 'kugou', name: 'KuGou', desc: 'Asian and international catalog', icon: AudioLines },
+  { id: 'ytmusic', name: 'YouTube Music', desc: 'Official YouTube Music lyrics', icon: Mic2 },
+  { id: 'streamx', name: 'StreamX Backend', desc: 'StreamX server backend lyrics', icon: AudioLines },
 ]
 
 const STYLES: Array<{ id: LyricsAnimationStyle; name: string; desc: string; icon: React.FC<{ className?: string }> }> = [
