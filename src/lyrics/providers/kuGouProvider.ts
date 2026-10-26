@@ -1,6 +1,7 @@
 import type { LyricLine } from '@/schemas/track'
 import { parseLrc } from '@/api/lyrics'
 import { safeFetchText } from '../lyricsHttp'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 /**
  * KuGou — Line-synced lyrics with extensive coverage across global and Asian catalogs.
@@ -28,6 +29,54 @@ function stripCredits(raw: string): string {
   return out.join('\n')
 }
 
+function getKuGouSearchBases(): string[] {
+  const bases: string[] = []
+  if (typeof window !== 'undefined') {
+    try {
+      const apiBase = useSettingsStore.getState().apiBaseUrl
+      if (apiBase) {
+        bases.push(`${apiBase.replace(/\/+$/, '')}/kugou/search`)
+      }
+    } catch {
+      // ignore
+    }
+    bases.push('/kugou/search')
+  }
+  bases.push('https://mobileservice.kugou.com')
+  return Array.from(new Set(bases))
+}
+
+function getKuGouLyricsBases(): string[] {
+  const bases: string[] = []
+  if (typeof window !== 'undefined') {
+    try {
+      const apiBase = useSettingsStore.getState().apiBaseUrl
+      if (apiBase) {
+        bases.push(`${apiBase.replace(/\/+$/, '')}/kugou/lyrics`)
+      }
+    } catch {
+      // ignore
+    }
+    bases.push('/kugou/lyrics')
+  }
+  bases.push('http://lyrics.kugou.com')
+  return Array.from(new Set(bases))
+}
+
+async function fetchFromBases(
+  bases: string[],
+  pathWithQuery: string,
+  signal?: AbortSignal
+): Promise<string | null> {
+  for (const base of bases) {
+    if (signal?.aborted) return null
+    const url = `${base}${pathWithQuery}`
+    const res = await safeFetchText(url, { signal, timeoutMs: 3500 })
+    if (res) return res
+  }
+  return null
+}
+
 export async function fetchKuGou(
   title: string,
   artist: string,
@@ -41,8 +90,9 @@ export async function fetchKuGou(
   const seconds = Math.round(durationMs / 1000)
 
   // 1. Search song hash
-  const songUrl = `https://mobileservice.kugou.com/api/v3/search/song?version=9108&plat=0&pagesize=8&showtype=0&keyword=${encodeURIComponent(query)}`
-  const songBody = await safeFetchText(songUrl, { signal, timeoutMs: 3500 })
+  const searchBases = getKuGouSearchBases()
+  const songPath = `/api/v3/search/song?version=9108&plat=0&pagesize=8&showtype=0&keyword=${encodeURIComponent(query)}`
+  const songBody = await fetchFromBases(searchBases, songPath, signal)
   let hash: string | null = null
 
   if (songBody) {
@@ -58,19 +108,21 @@ export async function fetchKuGou(
   }
 
   // 2. Search lyrics candidate
-  const lyricsUrl = new URL('https://lyrics.kugou.com/search')
-  lyricsUrl.searchParams.set('ver', '1')
-  lyricsUrl.searchParams.set('man', 'yes')
-  lyricsUrl.searchParams.set('client', 'pc')
-
+  const lyricsBases = getKuGouLyricsBases()
+  const queryParams = new URLSearchParams({
+    ver: '1',
+    man: 'yes',
+    client: 'pc',
+  })
   if (hash) {
-    lyricsUrl.searchParams.set('hash', hash)
+    queryParams.set('hash', hash)
   } else {
-    lyricsUrl.searchParams.set('keyword', query)
-    if (seconds > 0) lyricsUrl.searchParams.set('duration', (seconds * 1000).toString())
+    queryParams.set('keyword', query)
+    if (seconds > 0) queryParams.set('duration', (seconds * 1000).toString())
   }
 
-  const searchBody = await safeFetchText(lyricsUrl.toString(), { signal, timeoutMs: 3500 })
+  const searchPath = `/search?${queryParams.toString()}`
+  const searchBody = await fetchFromBases(lyricsBases, searchPath, signal)
   if (!searchBody) return null
 
   let candidate: { id: string; accesskey: string } | null = null
@@ -87,8 +139,8 @@ export async function fetchKuGou(
   if (!candidate || !candidate.id || !candidate.accesskey) return null
 
   // 3. Download lyric
-  const downloadUrl = `https://lyrics.kugou.com/download?fmt=lrc&charset=utf8&client=pc&ver=1&id=${encodeURIComponent(candidate.id)}&accesskey=${encodeURIComponent(candidate.accesskey)}`
-  const downloadBody = await safeFetchText(downloadUrl, { signal, timeoutMs: 3500 })
+  const downloadPath = `/download?fmt=lrc&charset=utf8&client=pc&ver=1&id=${encodeURIComponent(candidate.id)}&accesskey=${encodeURIComponent(candidate.accesskey)}`
+  const downloadBody = await fetchFromBases(lyricsBases, downloadPath, signal)
   if (!downloadBody) return null
 
   try {
@@ -103,4 +155,3 @@ export async function fetchKuGou(
     return null
   }
 }
-
