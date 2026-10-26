@@ -165,6 +165,18 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      '/youtubei': {
+        target: 'https://music.youtube.com',
+        changeOrigin: true,
+        headers: {
+          Origin: 'https://music.youtube.com',
+          Referer: 'https://music.youtube.com/',
+          'X-Origin': 'https://music.youtube.com',
+          'X-YouTube-Client-Name': '67',
+          'X-YouTube-Client-Version': '1.20250101.01.00',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        },
+      },
     },
   },
   test: {
