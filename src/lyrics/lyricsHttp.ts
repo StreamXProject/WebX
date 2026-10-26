@@ -7,6 +7,8 @@
 export async function safeFetchText(
   url: string,
   options?: {
+    method?: string
+    body?: string
     headers?: Record<string, string>
     signal?: AbortSignal
     timeoutMs?: number
@@ -25,6 +27,8 @@ export async function safeFetchText(
 
   try {
     const res = await fetch(url, {
+      method: options?.method || (options?.body ? 'POST' : 'GET'),
+      body: options?.body,
       signal: controller.signal,
       headers: {
         Accept: 'application/json, text/plain, application/xml, */*',
