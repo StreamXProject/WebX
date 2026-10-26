@@ -177,6 +177,22 @@ export default defineConfig({
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         },
       },
+      '/kugou/search': {
+        target: 'https://mobileservice.kugou.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/kugou\/search/, ''),
+        headers: {
+          'User-Agent': 'piTube/1.0',
+        },
+      },
+      '/kugou/lyrics': {
+        target: 'http://lyrics.kugou.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/kugou\/lyrics/, ''),
+        headers: {
+          'User-Agent': 'piTube/1.0',
+        },
+      },
     },
   },
   test: {

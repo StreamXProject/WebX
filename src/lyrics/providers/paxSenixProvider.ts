@@ -6,39 +6,12 @@ import { parseTtml } from '../ttmlParser'
 
 /**
  * PaxSenix — Public Apple Music TTML proxy using Apple Music catalog search.
- * Ported from StreamXAndroid / BitChord PaxSenixProvider.
+ * Uses official iTunes Search API (CORS-friendly across all browsers) to resolve
+ * Apple Music track IDs, then fetches word-synced TTML from PaxSenix.
  */
 
 const PUBLIC_PROXY = 'https://lyrics.paxsenix.org/apple-music/lyrics'
-const APPLE_SEARCH = 'https://amp-api.music.apple.com/v1/catalog/us/search'
-
-let cachedAppleToken: string | null = null
-
-async function getAppleToken(signal?: AbortSignal): Promise<string | null> {
-  if (cachedAppleToken) return cachedAppleToken
-
-  try {
-    const html = await safeFetchText('https://music.apple.com', { signal, timeoutMs: 3500 })
-    if (!html) return null
-
-    const scriptMatch = html.match(/\/assets\/index[-~][^"]+\.js/)
-    if (!scriptMatch) return null
-
-    const scriptUrl = `https://music.apple.com${scriptMatch[0]}`
-    const js = await safeFetchText(scriptUrl, { signal, timeoutMs: 3500 })
-    if (!js) return null
-
-    const tokenMatch = js.match(/ey[\w-]+\.ey[\w-]+\.[\w-]+/)
-    if (tokenMatch) {
-      cachedAppleToken = tokenMatch[0]
-      return cachedAppleToken
-    }
-  } catch {
-    // Token extraction failure
-  }
-
-  return null
-}
+const ITUNES_SEARCH = 'https://itunes.apple.com/search'
 
 export async function fetchPaxSenix(
   title: string,
@@ -46,45 +19,41 @@ export async function fetchPaxSenix(
   durationMs: number,
   signal?: AbortSignal
 ): Promise<LyricLine[] | null> {
-  const token = await getAppleToken(signal)
-  if (!token) return null
-
   const cleanT = cleanTitle(title)
   const cleanA = cleanArtist(artist)
   const primary = primaryArtist(cleanA)
 
-  const terms = Array.from(new Set([`${cleanT} ${primary}`.trim(), `${cleanT} ${cleanA}`.trim(), cleanT.trim()])).filter(Boolean)
+  const terms = Array.from(
+    new Set([`${cleanT} ${primary}`.trim(), `${cleanT} ${cleanA}`.trim(), cleanT.trim()])
+  ).filter(Boolean)
   const targetSeconds = durationMs / 1000
 
   for (const term of terms) {
     if (signal?.aborted) return null
-    const searchUrl = `${APPLE_SEARCH}?term=${encodeURIComponent(term)}&types=songs&limit=5&l=en-US`
+    const searchUrl = `${ITUNES_SEARCH}?term=${encodeURIComponent(term)}&entity=song&limit=5`
     const body = await safeFetchText(searchUrl, {
       signal,
       timeoutMs: 3500,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     })
     if (!body) continue
 
     try {
       const root = JSON.parse(body)
-      const songs = root?.results?.songs?.data
+      const songs = root?.results
       if (!Array.isArray(songs) || songs.length === 0) continue
 
       songs.sort((a, b) => {
-        const durA = (Number(a?.attributes?.durationInMillis) || 0) / 1000
-        const durB = (Number(b?.attributes?.durationInMillis) || 0) / 1000
+        const durA = (Number(a?.trackTimeMillis) || 0) / 1000
+        const durB = (Number(b?.trackTimeMillis) || 0) / 1000
         const distA = targetSeconds > 0 ? Math.abs(durA - targetSeconds) : 0
         const distB = targetSeconds > 0 ? Math.abs(durB - targetSeconds) : 0
         return distA - distB
       })
 
-      const bestId = songs[0]?.id
+      const bestId = songs[0]?.trackId
       if (!bestId) continue
 
-      const proxyUrl = `${PUBLIC_PROXY}?id=${encodeURIComponent(bestId)}&ttml=true`
+      const proxyUrl = `${PUBLIC_PROXY}?id=${encodeURIComponent(String(bestId))}&ttml=true`
       const raw = await safeFetchText(proxyUrl, { signal, timeoutMs: 4000 })
       if (!raw) continue
 
@@ -100,4 +69,3 @@ export async function fetchPaxSenix(
 
   return null
 }
-
